@@ -9,6 +9,13 @@ int main(void) {
 
     NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
+    const float x[] = {1, 2, 3};
+    float out[1];
+
+    nn_predict(nn, x, out);
+
+    printf("OUT = [%f]\n", *out);
+
     nn_free(nn);
     return 0;
 }

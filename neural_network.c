@@ -44,7 +44,7 @@ struct NN {
 
     /*
     Array of activation function (and its derivative).
-    length = 'units_configuration_len'.
+    length = 'units_configuration_len' - 1.
     */
     nn_activation *activations;
     nn_activation_derivative *activations_derivative;
@@ -84,6 +84,28 @@ static float glorot(size_t n_in) {
     const float x = sqrtf(6.0 / (n_in + n_out));
     return randf(-x, x);
 }
+
+/*
+'res' needs to be a matrix of 'A_rows' rows and 'B_cols' columns.
+*/
+static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *res) {
+    if (A_cols != B_rows) {
+        fprintf(stderr, "[ERROR]: Trying to mult A * B, but A_cols != B_rows\n");
+        exit(1);
+    }
+
+    for (size_t row = 0; row < A_rows; ++row) {
+        for (size_t col = 0; col < B_cols; ++col) {
+            float dot_prod = 0.0;
+
+            for (size_t i = 0; i < A_rows; ++i) {
+                dot_prod += A[row*A_cols + i] * B[i*B_cols + col];
+            }
+
+            res[row*B_cols + col] = dot_prod;
+        }
+    }
+}
 /* ================================================================= */
 
 
@@ -118,6 +140,7 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
 
     /* Copy units_configuration into the struct */
     nn->units_configuration = nn_malloc(units_configuration_len * sizeof(size_t));
+    nn->units_configuration_len = units_configuration_len;
     memcpy(nn->units_configuration, units_configuration, units_configuration_len * sizeof(size_t));
 
     /* Weights initialize */
@@ -154,10 +177,10 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
     }
 
     /* Activation functions initialize */
-    nn->activations = nn_malloc(units_configuration_len * sizeof(nn_activation *));
-    nn->activations_derivative = nn_malloc(units_configuration_len * sizeof(nn_activation_derivative *));
+    nn->activations = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation *));
+    nn->activations_derivative = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation_derivative *));
 
-    for (size_t i = 0; i < units_configuration_len; ++i) {
+    for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         switch (units_activation[i]) {
             case NN_SIGMOID:
                 (nn->activations)[i] = sigmoid;
@@ -186,4 +209,44 @@ void nn_free(NN *nn) {
     free(nn->activations);
     free(nn->activations_derivative);
     free(nn);
+}
+
+void nn_predict(NN *nn, const float *x, float *out) {
+    size_t x_cols = nn->units_configuration[0];
+    const size_t x_rows = 1;
+
+    /* Find the layer with maximum connections (the largest weights matrix) */
+    size_t largest_matrix = 0;
+
+    for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
+        if ((nn->units_configuration)[i] * (nn->units_configuration)[i+1] > largest_matrix) {
+            largest_matrix = (nn->units_configuration)[i] * (nn->units_configuration)[i+1];
+        }
+    }
+
+    float input[largest_matrix];
+    memcpy(input, x, x_cols * sizeof(float));
+
+    /* Feed forward through the nn layers */
+    for (size_t i = 0; i < nn->layers_len; ++i) {
+        size_t res_len = x_rows * nn->units_configuration[i+1];
+        float res[res_len];
+
+        nn_matrix_mul(
+            input, x_rows, x_cols,
+            nn->layers[i], nn->units_configuration[i], nn->units_configuration[i+1],
+            res
+        );
+
+        /* Applying activation function */
+        for (size_t j = 0; j < res_len; ++j) {
+            nn->activations[i](res[j]);
+        }
+
+        /* 'res' is the new x */
+        memcpy(input, res, res_len * sizeof(float));
+        x_cols = nn->units_configuration[i+1];
+    }
+
+    memcpy(out, input, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
 }

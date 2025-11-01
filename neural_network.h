@@ -69,6 +69,6 @@ Feed forward the network.
 'x' is an array of length 'units_configuration[0]'.
 The prediction result will be put in the 'res' array of length 'units_configuration[units_configuration_len - 1]'.
 */
-void nn_predict(NN *nn, const float *x, float *res);
+void nn_predict(NN *nn, const float *x, float *out);
 
 #endif /* NEURAL_NETWORK */
