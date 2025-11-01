@@ -113,7 +113,7 @@ static float tanh_derivative(float x) {
 
 
 
-NN *NN_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init) {
+NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init) {
     NN *nn = nn_malloc(sizeof(NN));
 
     /* Copy units_configuration into the struct */
@@ -177,4 +177,13 @@ NN *NN_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
     }
 
     return nn;
+}
+
+void nn_free(NN *nn) {
+    free(nn->units_configuration);
+    free(nn->weights);
+    free(nn->layers);
+    free(nn->activations);
+    free(nn->activations_derivative);
+    free(nn);
 }

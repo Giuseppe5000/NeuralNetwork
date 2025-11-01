@@ -46,14 +46,14 @@ Example:
         w(x4<->x5),
     }
 */
-NN *NN_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init);
+NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init);
 
 /*
 Freeing allocated memory.
 
 [NOTE]: Using 'nn' after calling this function, obviously, causes undefined behaviour.
 */
-void NN_free(NN *nn);
+void nn_free(NN *nn);
 
 /*
 Train the neural network.
@@ -61,7 +61,7 @@ Train the neural network.
 'x_train' is a matrix of 'train_len' rows and 'units_configuration[0]' columns.
 'y_train' is a matrix of 'train_len' rows and 'units_configuration[units_configuration_len - 1]' columns.
 */
-void NN_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold);
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold);
 
 /*
 Feed forward the network.
@@ -69,6 +69,6 @@ Feed forward the network.
 'x' is an array of length 'units_configuration[0]'.
 The prediction result will be put in the 'res' array of length 'units_configuration[units_configuration_len - 1]'.
 */
-void NN_predict(NN *nn, const float *x, float *res);
+void nn_predict(NN *nn, const float *x, float *res);
 
 #endif /* NEURAL_NETWORK */

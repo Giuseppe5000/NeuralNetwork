@@ -7,7 +7,8 @@ int main(void) {
 
     enum Activation units_activation[] = {NN_SIGMOID, NN_TANH, NN_RELU};
 
-    NN * nn = NN_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
+    NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
+    nn_free(nn);
     return 0;
 }
