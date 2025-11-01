@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#include <float.h>
 
 /* ======================== Data structures ======================== */
 typedef float (*nn_activation)(float);
@@ -243,10 +244,32 @@ void nn_predict(NN *nn, const float *x, float *out) {
             nn->activations[i](res[j]);
         }
 
-        /* 'res' is the new x */
+        /* 'res' is the new input */
         memcpy(input, res, res_len * sizeof(float));
         x_cols = nn->units_configuration[i+1];
     }
 
     memcpy(out, input, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
+}
+
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold) {
+    float error = FLT_MAX;
+
+    while (error > err_threshold) {
+
+        /* Getting the current error, using the Softmax */
+        error = 0.0;
+        const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+        float out[out_len];
+        for (size_t i = 0; i < train_len; ++i) {
+            nn_predict(nn, x_train + i*nn->units_configuration[0], out);
+
+            for (size_t j = 0; j < out_len; ++j) {
+                error += powf(y_train[i*out_len + j] - out[i*out_len + j], 2);
+            }
+        }
+        error *= 1.0/(2.0*out_len*train_len);
+
+        printf("Error = %f\n", error);
+    }
 }

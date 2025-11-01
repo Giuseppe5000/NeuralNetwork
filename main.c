@@ -9,6 +9,26 @@ int main(void) {
 
     NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
+    /* Train */
+
+    const float x_train[] = {
+        1, 2, 3,
+        1, 1, 3,
+        1, 2, 5,
+        1, 0, 3,
+    };
+
+    const float y_train[] = {
+        1,
+        0,
+        0,
+        0,
+    };
+
+    size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
+    nn_fit(nn, x_train, y_train, train_len, 0.1, 0.001);
+
+    /* Test */
     const float x[] = {1, 2, 3};
     float out[1];
 
