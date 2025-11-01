@@ -145,7 +145,7 @@ NN *NN_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
 
     /* Layers initialize */
     nn->layers_len = units_configuration_len - 1;
-    nn->layers = malloc(nn->layers_len * sizeof(float *));
+    nn->layers = nn_malloc(nn->layers_len * sizeof(float *));
 
     size_t counter = 0;
     for (size_t i = 0; i < nn->layers_len; ++i) {
@@ -154,6 +154,9 @@ NN *NN_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
     }
 
     /* Activation functions initialize */
+    nn->activations = nn_malloc(units_configuration_len * sizeof(nn_activation *));
+    nn->activations_derivative = nn_malloc(units_configuration_len * sizeof(nn_activation_derivative *));
+
     for (size_t i = 0; i < units_configuration_len; ++i) {
         switch (units_activation[i]) {
             case NN_SIGMOID:
