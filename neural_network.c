@@ -287,6 +287,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold) {
     float error = FLT_MAX;
+    size_t epoch = 0;
 
     /* Array for storing the intermediate products in the feed forward */
     size_t intermediate_products_len = 0;
@@ -314,7 +315,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
         error *= 1.0/(2.0*out_len*train_len);
-        printf("Error = %f\n", error);
+        if (epoch % 1000 == 0) printf("Error = %f\n", error);
 
         /*
         ================
@@ -351,6 +352,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             deltas[deltas_out_index + i] = out[i] - y_train[rand_i*out_len + i];
         }
 
+        // printf("out = %f\n", out[0]);
+        // printf("y = %f\n", y_train[rand_i*out_len]);
+        // printf("delta(%zu) = %f\n", nn->layers_len, deltas[deltas_out_index]);
+
         /* delta(L-1) .. delta(1) */
         size_t counter_index = deltas_out_index;
         for (size_t i = nn->layers_len - 1; i > 0; --i) {
@@ -366,6 +371,11 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 res[j] *= nn->activations_derivative[i](intermediate_products[counter_index+j]);
             }
 
+            // printf("\ndelta(%zu):\n", i);
+            // for (size_t j = 0; j < nn->units_configuration[i]; ++j) {
+            //     printf("%f\n", res[j]);
+            // }
+
             counter_index -= nn->units_configuration[i];
             memcpy(deltas + counter_index, res, nn->units_configuration[i]*sizeof(float));
         }
@@ -377,14 +387,36 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         where a(l) is the output ('f(z(l))') of the layer l.
         */
 
-        /* TODO */
+        counter_index = 0;
+        for (size_t i = 0; i < nn->layers_len; ++i) {
+            float intermediate_activations_i[nn->units_configuration[i+1]];
 
-        /*
-        ==================
-        / Weights update /
-        ==================
-        */
+            for (size_t j = 0; j < nn->units_configuration[i+1]; ++j) {
+                intermediate_activations_i[j] = nn->activations[i](intermediate_products[counter_index+j]);
+            }
 
-        /* TODO */
+            float res[nn->units_configuration[i+1]*nn->units_configuration[i+1]];
+            nn_matrix_mul(
+                deltas + counter_index, nn->units_configuration[i], 1,
+                intermediate_activations_i, 1, nn->units_configuration[i+1],
+                res
+            );
+
+            /* weights update */
+            printf("\ngradients(%zu):\n", i);
+            for (size_t j = 0; j < nn->units_configuration[i]*nn->units_configuration[i+1]; ++j) {
+                printf("%f\n", res[j]);
+                *(nn->layers[i] + j) += learning_rate * res[j];
+            }
+
+            printf("\nupdated weights(%zu):\n", i);
+            for (size_t j = 0; j < nn->units_configuration[i]*nn->units_configuration[i+1]; ++j) {
+                printf("%f\n", *(nn->layers[i] + j));
+            }
+
+            counter_index += nn->units_configuration[i];
+        }
+
+        epoch++;
     }
 }
