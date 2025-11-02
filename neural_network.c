@@ -297,7 +297,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
     while (error > err_threshold) {
 
-        /* Getting the current error, using the Softmax */
+        /* Getting the current error, using the MSE */
         error = 0.0;
         const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
         float out[out_len];
