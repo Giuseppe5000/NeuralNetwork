@@ -218,9 +218,20 @@ void nn_free(NN *nn) {
     free(nn);
 }
 
-void nn_predict(NN *nn, const float *x, float *out) {
+/*
+Feed forward the NN.
+
+'x' is an array of length 'nn->units_configuration[0]'.
+The prediction result will be put in the 'res' array of length 'units_configuration[nn->units_configuration_len - 1]'.
+
+The intermidiate products will be put in the 'intermidiate_products' array IF it is not NULL.
+Its length has to be the sum of the elements of nn->units_configuration (excluding the first):
+    so, nn->units_configuration[1] + .. + nn->units_configuration[nn->units_configuration_len - 1].
+*/
+static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermediate_products) {
     size_t x_cols = nn->units_configuration[0];
     const size_t x_rows = 1;
+    size_t intermidiate_products_counter = 0;
 
     /*
     Find the unit configuration with maximum neurons.
@@ -250,6 +261,13 @@ void nn_predict(NN *nn, const float *x, float *out) {
             res
         );
 
+        /* Saving intermidiate products */
+        if (intermediate_products != NULL) {
+            for (size_t j = 0; j < res_len; ++j) {
+                intermediate_products[intermidiate_products_counter++] = res[j];
+            }
+        }
+
         /* Applying activation function */
         for (size_t j = 0; j < res_len; ++j) {
             nn->activations[i](res[j]);
@@ -263,8 +281,19 @@ void nn_predict(NN *nn, const float *x, float *out) {
     memcpy(out, input, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
 }
 
+void nn_predict(NN *nn, const float *x, float *out) {
+    nn_feed_forward(nn, x, out, NULL);
+}
+
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold) {
     float error = FLT_MAX;
+
+    /* Array for storing the intermediate products in the feed forward */
+    size_t intermediate_products_len = 0;
+    for (size_t i = 1; i < nn->units_configuration_len; ++i) {
+        intermediate_products_len += nn->units_configuration[i];
+    }
+    float intermediate_products[intermediate_products_len];
 
     while (error > err_threshold) {
 
@@ -273,7 +302,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
         float out[out_len];
         for (size_t i = 0; i < train_len; ++i) {
-            nn_predict(nn, x_train + i*nn->units_configuration[0], out);
+            nn_feed_forward(nn, x_train + i*nn->units_configuration[0], out, intermediate_products);
 
             for (size_t j = 0; j < out_len; ++j) {
                 error += powf(y_train[i*out_len + j] - out[i*out_len + j], 2);
