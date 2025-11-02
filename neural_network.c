@@ -222,18 +222,20 @@ void nn_predict(NN *nn, const float *x, float *out) {
     size_t x_cols = nn->units_configuration[0];
     const size_t x_rows = 1;
 
-    /* Find the layer with maximum connections (the largest weights matrix) */
-    size_t largest_matrix = 0;
+    /*
+    Find the unit configuration with maximum neurons.
+    In this way we are sure that 'input' can contain
+    all the intermediate results during the forward.
+    */
+    size_t max_neurons = 0;
 
-    for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
-        const size_t current_size = (nn->units_configuration)[i] * (nn->units_configuration)[i+1] + (nn->units_configuration)[i+1];
-
-        if (current_size > largest_matrix) {
-            largest_matrix = current_size;
+    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
+        if (nn->units_configuration[i] > max_neurons) {
+            max_neurons = nn->units_configuration[i];
         }
     }
 
-    float input[largest_matrix];
+    float input[max_neurons];
     input[0] = 1.0; /* Bias */
     memcpy(input + 1, x, x_cols * sizeof(float));
 
