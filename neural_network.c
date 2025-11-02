@@ -235,7 +235,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
         }
     }
 
-    float input[max_neurons];
+    float input[max_neurons + 1];
     input[0] = 1.0; /* Bias */
     memcpy(input + 1, x, x_cols * sizeof(float));
 
