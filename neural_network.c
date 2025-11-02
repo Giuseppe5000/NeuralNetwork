@@ -295,21 +295,48 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
     float intermediate_products[intermediate_products_len];
 
+    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    float out[out_len];
+
     while (error > err_threshold) {
 
         /* Getting the current error, using the MSE */
         error = 0.0;
-        const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-        float out[out_len];
         for (size_t i = 0; i < train_len; ++i) {
-            nn_feed_forward(nn, x_train + i*nn->units_configuration[0], out, intermediate_products);
+            nn_predict(nn, x_train + i*nn->units_configuration[0], out);
 
             for (size_t j = 0; j < out_len; ++j) {
                 error += powf(y_train[i*out_len + j] - out[i*out_len + j], 2);
             }
         }
         error *= 1.0/(2.0*out_len*train_len);
-
         printf("Error = %f\n", error);
+
+        /*
+        ================
+        / Feed forward /
+        ================
+        */
+
+        /*
+        We use stochastic gradient descente, so we need to feed a random training example to the neural network.
+        */
+        const int rand_i = rand() % train_len;
+        nn_feed_forward(nn, x_train + rand_i * nn->units_configuration[0], out, intermediate_products);
+
+        /*
+        ===================
+        / Backpropagation /
+        ===================
+        */
+
+        /*
+        We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
+
+        delta(L) (where L is the output layer) = 'a(L) - y_train(i)', where a(L) is the feed forward output.
+
+        delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) * f'(z(l))',
+        where z(l) is the intermidiate product at layer l and f' the derivative of the activation of that layer.
+        */
     }
 }
