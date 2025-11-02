@@ -5,7 +5,7 @@ int main(void) {
     size_t units_configuration[] = {3, 2, 1};
     size_t units_configuration_len = sizeof(units_configuration) / sizeof(units_configuration[0]);
 
-    enum Activation units_activation[] = {NN_SIGMOID, NN_TANH, NN_RELU};
+    enum Activation units_activation[] = {NN_SIGMOID, NN_TANH};
 
     NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
@@ -20,7 +20,7 @@ int main(void) {
 
     const float y_train[] = {
         1,
-        0,
+        1,
         0,
         0,
     };

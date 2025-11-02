@@ -80,8 +80,7 @@ static float randf(float min, float max) {
 Glorot initialization
 https://en.wikipedia.org/wiki/Weight_initialization#Glorot_initialization
 */
-static float glorot(size_t n_in) {
-    const size_t n_out = 1;
+static float glorot(size_t n_in, size_t n_out) {
     const float x = sqrtf(6.0 / (n_in + n_out));
     return randf(-x, x);
 }
@@ -144,37 +143,44 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
     nn->units_configuration_len = units_configuration_len;
     memcpy(nn->units_configuration, units_configuration, units_configuration_len * sizeof(size_t));
 
-    /* Weights initialize */
+    /* Weights and layers initialize */
     nn->weights_len = 0;
 
     for (size_t i = 0; i < units_configuration_len - 1; ++i) {
-        nn->weights_len += units_configuration[i] * units_configuration[i+1];
+        /*
+        (units_configuration[i] * units_configuration[i+1]) = N x M matrix weights
+        units_configuration[i+1] = weights for bias term
+        */
+        nn->weights_len += units_configuration[i] * units_configuration[i+1] + units_configuration[i+1];
     }
-
     nn->weights = nn_malloc(nn->weights_len * sizeof(float));
 
-    srand(time(NULL));
-    for (size_t i = 0; i < nn->weights_len; ++i) {
-        switch (w_init) {
-            case NN_UNIFORM:
-                nn->weights[i] = randf(-0.01,0.01);
-                break;
-            case NN_GLOROT:
-                nn->weights[i] = glorot(nn->weights_len);
-                break;
-            default:
-                assert(0 && "Unreachable");
-        }
-    }
-
-    /* Layers initialize */
     nn->layers_len = units_configuration_len - 1;
     nn->layers = nn_malloc(nn->layers_len * sizeof(float *));
-
     size_t counter = 0;
     for (size_t i = 0; i < nn->layers_len; ++i) {
         nn->layers[i] = nn->weights + counter;
-        counter += units_configuration[i] * units_configuration[i+1];
+        counter += units_configuration[i] * units_configuration[i+1] + units_configuration[i+1];
+    }
+
+    srand(time(NULL));
+    for(size_t i = 0; i < nn->layers_len; ++i) {
+        const size_t layer_size = units_configuration[i] * units_configuration[i+1] + units_configuration[i+1];
+
+        for (size_t j = 0; j < layer_size; ++j) {
+            float *weight = nn->layers[i] + j;
+
+            switch (w_init) {
+                case NN_UNIFORM:
+                    *weight = randf(-0.01,0.01);
+                    break;
+                case NN_GLOROT:
+                    *weight = glorot(units_configuration[i] + 1, units_configuration[i+1]);
+                    break;
+                default:
+                    assert(0 && "Unreachable");
+            }
+        }
     }
 
     /* Activation functions initialize */
@@ -220,22 +226,25 @@ void nn_predict(NN *nn, const float *x, float *out) {
     size_t largest_matrix = 0;
 
     for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
-        if ((nn->units_configuration)[i] * (nn->units_configuration)[i+1] > largest_matrix) {
-            largest_matrix = (nn->units_configuration)[i] * (nn->units_configuration)[i+1];
+        const size_t current_size = (nn->units_configuration)[i] * (nn->units_configuration)[i+1] + (nn->units_configuration)[i+1];
+
+        if (current_size > largest_matrix) {
+            largest_matrix = current_size;
         }
     }
 
     float input[largest_matrix];
-    memcpy(input, x, x_cols * sizeof(float));
+    input[0] = 1.0; /* Bias */
+    memcpy(input + 1, x, x_cols * sizeof(float));
 
     /* Feed forward through the nn layers */
     for (size_t i = 0; i < nn->layers_len; ++i) {
-        size_t res_len = x_rows * nn->units_configuration[i+1];
+        size_t res_len = nn->units_configuration[i+1];
         float res[res_len];
 
         nn_matrix_mul(
-            input, x_rows, x_cols,
-            nn->layers[i], nn->units_configuration[i], nn->units_configuration[i+1],
+            input, x_rows, x_cols + 1, /* + 1 is for multiply the bias weights */
+            nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
             res
         );
 
@@ -245,7 +254,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
         }
 
         /* 'res' is the new input */
-        memcpy(input, res, res_len * sizeof(float));
+        memcpy(input + 1, res, res_len * sizeof(float));
         x_cols = nn->units_configuration[i+1];
     }
 

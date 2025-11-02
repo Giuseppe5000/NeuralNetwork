@@ -20,28 +20,35 @@ enum Weight_initialization {
 Initialize the nn, allocating the weights according to the 'units_configuration' and setting their value according to the stategy 'w_init'.
 'units_activation' is an array of length 'units_configuration_len' that specify the activation function for each layer.
 
+[NOTE]: Bias terms are implicit.
+
 Example:
     size_t units_configuration[] = {3, 2, 1};
     enum Activation units_activation[] = {NN_SIGMOID, NN_TANH, NN_RELU};
 
-             |> x0
+                b0
+             |> x0   b1
              |     > x3
     input => |> x1      > x5 => output
              |     > x4
              |> x2
 
     (The xn's are neurons, and x0/x1/x2 are the input).
+    (b0 and b1 are always 1).
     Here we have a (fully connected) 2-layer neural network (or a 1-hidden-layer nn).
 
-    The first matrix of weigths is of size 3x2 and the second is 2x1.
+    The first matrix of weigths is of size 4x2 (3x2 input weights and a 1x2 for bias)
+    and the second is 3x1 (2x1 for input weights and 1x1 for bias).
 
     first_matrix_weights = {
+        w(b0<->x3), w(b0<->x4),   <-- bias
         w(x0<->x3), w(x0<->x4),
         w(x1<->x3), w(x1<->x4),
         w(x2<->x3), w(x2<->x4),
     }
 
     second_matrix_weights = {
+        w(b1<->x5),    <-- bias
         w(x3<->x5),
         w(x4<->x5),
     }
