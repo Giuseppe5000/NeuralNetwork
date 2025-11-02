@@ -224,14 +224,14 @@ Feed forward the NN.
 'x' is an array of length 'nn->units_configuration[0]'.
 The prediction result will be put in the 'res' array of length 'units_configuration[nn->units_configuration_len - 1]'.
 
-The intermidiate products will be put in the 'intermidiate_products' array IF it is not NULL.
+The intermediate products will be put in the 'intermediate_products' array IF it is not NULL.
 Its length has to be the sum of the elements of nn->units_configuration (excluding the first):
     so, nn->units_configuration[1] + .. + nn->units_configuration[nn->units_configuration_len - 1].
 */
 static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermediate_products) {
     size_t x_cols = nn->units_configuration[0];
     const size_t x_rows = 1;
-    size_t intermidiate_products_counter = 0;
+    size_t intermediate_products_counter = 0;
 
     /*
     Find the unit configuration with maximum neurons.
@@ -261,10 +261,10 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
             res
         );
 
-        /* Saving intermidiate products */
+        /* Saving intermediate products */
         if (intermediate_products != NULL) {
             for (size_t j = 0; j < res_len; ++j) {
-                intermediate_products[intermidiate_products_counter++] = res[j];
+                intermediate_products[intermediate_products_counter++] = res[j];
             }
         }
 
@@ -295,8 +295,12 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
     float intermediate_products[intermediate_products_len];
 
+    /* Array for storing the output */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     float out[out_len];
+
+    /* Array for storing deltas*/
+    float deltas[intermediate_products_len];
 
     while (error > err_threshold) {
 
@@ -331,12 +335,56 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         */
 
         /*
+        Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation).
+
         We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
 
         delta(L) (where L is the output layer) = 'a(L) - y_train(i)', where a(L) is the feed forward output.
 
-        delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) * f'(z(l))',
-        where z(l) is the intermidiate product at layer l and f' the derivative of the activation of that layer.
+        delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) .* f'(z(l))',
+        where z(l) is the intermediate product at layer l and f' the derivative of the activation of that layer.
         */
+
+        /* delta(L) */
+        const size_t deltas_out_index = intermediate_products_len - out_len;
+        for (size_t i = 0; i < out_len; ++i) {
+            deltas[deltas_out_index + i] = out[i] - y_train[rand_i*out_len + i];
+        }
+
+        /* delta(L-1) .. delta(1) */
+        size_t counter_index = deltas_out_index;
+        for (size_t i = nn->layers_len - 1; i > 0; --i) {
+            float res[nn->units_configuration[i]];
+
+            nn_matrix_mul(
+                nn->layers[i], nn->units_configuration[i], nn->units_configuration[i+1],
+                deltas + counter_index, nn->units_configuration[i+1], 1,
+                res
+            );
+
+            for (size_t j = 0; j < nn->units_configuration[i]; ++j) {
+                res[j] *= nn->activations_derivative[i](intermediate_products[counter_index+j]);
+            }
+
+            counter_index -= nn->units_configuration[i];
+            memcpy(deltas + counter_index, res, nn->units_configuration[i]*sizeof(float));
+        }
+
+        /*
+        Now we have all the delta(i) and we can calculate the gradient(l) (gradient of the layer l) for each l.
+
+        gradient(l) = 'delta(l+1) * transpose(a(l))',
+        where a(l) is the output ('f(z(l))') of the layer l.
+        */
+
+        /* TODO */
+
+        /*
+        ==================
+        / Weights update /
+        ==================
+        */
+
+        /* TODO */
     }
 }
