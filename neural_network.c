@@ -376,7 +376,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 res
             );
 
-            for (size_t j = 0; j < res_len - 1; ++j) {
+            /* Starting from 1, excluding the bias delta */
+            for (size_t j = 1; j < res_len; ++j) {
                 res[j] *= nn->activations_derivative[i-1](intermediate_products[counter_index+j]);
             }
 
@@ -403,14 +404,19 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 if (counter_index == 0) {
                     intermediate_activations_i[j] = intermediate_products[counter_index+j];
                 } else {
-                    intermediate_activations_i[j] = nn->activations[i](intermediate_products[counter_index+j]);
+                    if (j == 0) { /* Bias term doesn't have activation function */
+                        intermediate_activations_i[j] = intermediate_products[counter_index+j];
+                    }
+                    else {
+                        intermediate_activations_i[j] = nn->activations[i-1](intermediate_products[counter_index+j]);                        
+                    }
                 }
             }
 
             float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
             nn_matrix_mul(
-                deltas + counter_index, nn->units_configuration[i+1], 1,
-                intermediate_activations_i, 1, nn->units_configuration[i] + 1,
+                intermediate_activations_i, nn->units_configuration[i] + 1, 1,
+                deltas + counter_index, 1, nn->units_configuration[i+1],
                 res
             );
 
@@ -427,6 +433,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
 
             counter_index += nn->units_configuration[i];
+            counter_index += nn->units_configuration[i] + 1;
         }
 
         epoch++;
