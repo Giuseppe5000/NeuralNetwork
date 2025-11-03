@@ -1,1 +1,1 @@
-The backpropagation has something wrong and the bias gradients are not yet calculated.
+The backprop doesn't convers on nn with hidden layers.

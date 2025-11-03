@@ -2,34 +2,35 @@
 #include "neural_network.h"
 
 int main(void) {
-    size_t units_configuration[] = {3, 2, 1};
+    size_t units_configuration[] = {2, 2, 1};
     size_t units_configuration_len = sizeof(units_configuration) / sizeof(units_configuration[0]);
 
-    enum Activation units_activation[] = {NN_SIGMOID, NN_TANH};
+    enum Activation units_activation[] = {NN_SIGMOID, NN_SIGMOID, NN_SIGMOID, NN_SIGMOID};
 
-    NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
+    NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_UNIFORM);
 
     /* Train */
 
     const float x_train[] = {
-        1, 2, 3,
-        1, 1, 3,
-        1, 2, 5,
-        1, 0, 3,
+        0, 0,
+        0, 1,
+        1, 0,
+        1, 1
     };
 
     const float y_train[] = {
-        1,
-        1,
         0,
+        1,
+        1,
         0,
     };
 
     size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
-    nn_fit(nn, x_train, y_train, train_len, 0.1, 0.001);
+    printf("train_len = %zu\n", train_len);
+    nn_fit(nn, x_train, y_train, train_len, 0.001, 0.001);
 
     /* Test */
-    const float x[] = {1, 2, 3};
+    const float x[] = {0, 1};
     float out[1];
 
     nn_predict(nn, x, out);

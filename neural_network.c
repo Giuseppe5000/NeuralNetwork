@@ -414,6 +414,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
 
             float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
+
             nn_matrix_mul(
                 intermediate_activations_i, nn->units_configuration[i] + 1, 1,
                 deltas + counter_index, 1, nn->units_configuration[i+1],
@@ -421,18 +422,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             );
 
             /* weights update */
-            printf("\ngradients(%zu):\n", i);
             for (size_t j = 0; j < (nn->units_configuration[i] + 1) * nn->units_configuration[i+1]; ++j) {
-                printf("%f\n", res[j]);
                 *(nn->layers[i] + j) -= learning_rate * res[j];
             }
 
-            printf("\nupdated weights(%zu):\n", i);
-            for (size_t j = 0; j < nn->units_configuration[i]*nn->units_configuration[i+1]; ++j) {
-                printf("%f\n", *(nn->layers[i] + j));
-            }
-
-            counter_index += nn->units_configuration[i];
             counter_index += nn->units_configuration[i] + 1;
         }
 
