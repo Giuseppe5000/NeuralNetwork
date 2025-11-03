@@ -364,32 +364,24 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             deltas[deltas_out_index + i] = out[i] - y_train[rand_i*out_len + i];
         }
 
-        // printf("out = %f\n", out[0]);
-        // printf("y = %f\n", y_train[rand_i*out_len]);
-        // printf("delta(%zu) = %f\n", nn->layers_len, deltas[deltas_out_index]);
-
         /* delta(L-1) .. delta(1) */
         size_t counter_index = deltas_out_index;
         for (size_t i = nn->layers_len - 1; i > 0; --i) {
-            float res[nn->units_configuration[i]];
+            const size_t res_len = nn->units_configuration[i] + 1;
+            float res[res_len];
 
             nn_matrix_mul(
-                nn->layers[i], nn->units_configuration[i], nn->units_configuration[i+1],
+                nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
                 deltas + counter_index, nn->units_configuration[i+1], 1,
                 res
             );
 
-            for (size_t j = 0; j < nn->units_configuration[i]; ++j) {
-                res[j] *= nn->activations_derivative[i](intermediate_products[counter_index+j]);
+            for (size_t j = 0; j < res_len - 1; ++j) {
+                res[j] *= nn->activations_derivative[i-1](intermediate_products[counter_index+j]);
             }
 
-            // printf("\ndelta(%zu):\n", i);
-            // for (size_t j = 0; j < nn->units_configuration[i]; ++j) {
-            //     printf("%f\n", res[j]);
-            // }
-
-            counter_index -= nn->units_configuration[i];
-            memcpy(deltas + counter_index, res, nn->units_configuration[i]*sizeof(float));
+            counter_index -= res_len;
+            memcpy(deltas + counter_index, res, res_len*sizeof(float));
         }
 
         /*
