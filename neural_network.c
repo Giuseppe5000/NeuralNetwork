@@ -98,7 +98,7 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
         for (size_t col = 0; col < B_cols; ++col) {
             float dot_prod = 0.0;
 
-            for (size_t i = 0; i < A_rows; ++i) {
+            for (size_t i = 0; i < A_cols; ++i) {
                 dot_prod += A[row*A_cols + i] * B[i*B_cols + col];
             }
 
@@ -225,8 +225,8 @@ Feed forward the NN.
 The prediction result will be put in the 'res' array of length 'units_configuration[nn->units_configuration_len - 1]'.
 
 The intermediate products will be put in the 'intermediate_products' array IF it is not NULL.
-Its length has to be the sum of the elements of nn->units_configuration:
-    so, nn->units_configuration[0] + .. + nn->units_configuration[nn->units_configuration_len - 1].
+Its length has to be the sum of the elements of nn->units_configuration + the biases:
+    so, nn->units_configuration[0] + .. + nn->units_configuration[nn->units_configuration_len - 1] + biases.
 */
 static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermediate_products) {
     size_t x_cols = nn->units_configuration[0];
@@ -270,6 +270,9 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
 
         /* Saving intermediate products */
         if (intermediate_products != NULL) {
+            if (i != nn->layers_len - 1) {
+                intermediate_products[intermediate_products_counter++] = 1.0; /* Bias */
+            }
             for (size_t j = 0; j < res_len; ++j) {
                 intermediate_products[intermediate_products_counter++] = res[j];
             }
@@ -298,9 +301,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
     /* Array for storing the intermediate products in the feed forward */
     size_t intermediate_products_len = 0;
-    for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
-        intermediate_products_len += nn->units_configuration[i];
+    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
+        intermediate_products_len += nn->units_configuration[i] + 1; /* Number of neurons + bias */
     }
+    intermediate_products_len--; /* Last layer don't have bias */
     float intermediate_products[intermediate_products_len];
 
     /* Array for storing the output */
@@ -308,7 +312,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     float out[out_len];
 
     /* Array for storing deltas*/
-    float deltas[intermediate_products_len];
+    const size_t deltas_len = intermediate_products_len - (nn->units_configuration[0] + 1);
+    float deltas[deltas_len];
 
     while (error > err_threshold) {
 
@@ -354,7 +359,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         */
 
         /* delta(L) */
-        const size_t deltas_out_index = intermediate_products_len - out_len;
+        const size_t deltas_out_index = deltas_len - out_len;
         for (size_t i = 0; i < out_len; ++i) {
             deltas[deltas_out_index + i] = out[i] - y_train[rand_i*out_len + i];
         }
@@ -396,24 +401,32 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
         counter_index = 0;
         for (size_t i = 0; i < nn->layers_len; ++i) {
-            float intermediate_activations_i[nn->units_configuration[i+1]];
+            float intermediate_activations_i[nn->units_configuration[i] + 1];
 
-            for (size_t j = 0; j < nn->units_configuration[i+1]; ++j) {
-                intermediate_activations_i[j] = nn->activations[i](intermediate_products[counter_index+j]);
+            for (size_t j = 0; j < nn->units_configuration[i] + 1; ++j) {
+                /*
+                if counter_index == 0 then the first activation a(l) is just the input,
+                and so it does not have an activation function
+                */
+                if (counter_index == 0) {
+                    intermediate_activations_i[j] = intermediate_products[counter_index+j];
+                } else {
+                    intermediate_activations_i[j] = nn->activations[i](intermediate_products[counter_index+j]);
+                }
             }
 
-            float res[nn->units_configuration[i+1]*nn->units_configuration[i+1]];
+            float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
             nn_matrix_mul(
-                deltas + counter_index, nn->units_configuration[i], 1,
-                intermediate_activations_i, 1, nn->units_configuration[i+1],
+                deltas + counter_index, nn->units_configuration[i+1], 1,
+                intermediate_activations_i, 1, nn->units_configuration[i] + 1,
                 res
             );
 
             /* weights update */
             printf("\ngradients(%zu):\n", i);
-            for (size_t j = 0; j < nn->units_configuration[i]*nn->units_configuration[i+1]; ++j) {
+            for (size_t j = 0; j < (nn->units_configuration[i] + 1) * nn->units_configuration[i+1]; ++j) {
                 printf("%f\n", res[j]);
-                *(nn->layers[i] + j) += learning_rate * res[j];
+                *(nn->layers[i] + j) -= learning_rate * res[j];
             }
 
             printf("\nupdated weights(%zu):\n", i);
