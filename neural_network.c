@@ -288,7 +288,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
         x_cols = nn->units_configuration[i+1];
     }
 
-    memcpy(out, input, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
+    memcpy(out, input + 1, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
 }
 
 void nn_predict(NN *nn, const float *x, float *out) {
