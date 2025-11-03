@@ -225,13 +225,12 @@ Feed forward the NN.
 The prediction result will be put in the 'res' array of length 'units_configuration[nn->units_configuration_len - 1]'.
 
 The intermediate products will be put in the 'intermediate_products' array IF it is not NULL.
-Its length has to be the sum of the elements of nn->units_configuration (excluding the first):
-    so, nn->units_configuration[1] + .. + nn->units_configuration[nn->units_configuration_len - 1].
+Its length has to be the sum of the elements of nn->units_configuration:
+    so, nn->units_configuration[0] + .. + nn->units_configuration[nn->units_configuration_len - 1].
 */
 static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermediate_products) {
     size_t x_cols = nn->units_configuration[0];
     const size_t x_rows = 1;
-    size_t intermediate_products_counter = 0;
 
     /*
     Find the unit configuration with maximum neurons.
@@ -249,6 +248,14 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
     float input[max_neurons + 1];
     input[0] = 1.0; /* Bias */
     memcpy(input + 1, x, x_cols * sizeof(float));
+
+    /* Adding input as first intermidiate product */
+    size_t intermediate_products_counter = 0;
+    if (intermediate_products != NULL) {
+        for (size_t i = 0; i < nn->units_configuration[0] + 1; ++i) {
+            intermediate_products[intermediate_products_counter++] = input[i];
+        }
+    }
 
     /* Feed forward through the nn layers */
     for (size_t i = 0; i < nn->layers_len; ++i) {
@@ -270,7 +277,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
 
         /* Applying activation function */
         for (size_t j = 0; j < res_len; ++j) {
-            nn->activations[i](res[j]);
+            res[j] = nn->activations[i](res[j]);
         }
 
         /* 'res' is the new input */
@@ -291,7 +298,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
     /* Array for storing the intermediate products in the feed forward */
     size_t intermediate_products_len = 0;
-    for (size_t i = 1; i < nn->units_configuration_len; ++i) {
+    for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
         intermediate_products_len += nn->units_configuration[i];
     }
     float intermediate_products[intermediate_products_len];
@@ -311,7 +318,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             nn_predict(nn, x_train + i*nn->units_configuration[0], out);
 
             for (size_t j = 0; j < out_len; ++j) {
-                error += powf(y_train[i*out_len + j] - out[i*out_len + j], 2);
+                error += powf(y_train[i*out_len + j] - out[j], 2);
             }
         }
         error *= 1.0/(2.0*out_len*train_len);
