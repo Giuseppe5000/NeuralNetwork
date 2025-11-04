@@ -312,7 +312,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     float out[out_len];
 
     /* Array for storing deltas*/
-    const size_t deltas_len = intermediate_products_len - (nn->units_configuration[0] + 1);
+    size_t deltas_len = 0;
+    for (size_t i = 1; i < nn->units_configuration_len; ++i) {
+        deltas_len += nn->units_configuration[i];
+    }
     float deltas[deltas_len];
 
     while (error > err_threshold) {
@@ -348,7 +351,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         */
 
         /*
-        Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation).
+        Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 
         We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
 
@@ -365,24 +368,26 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         }
 
         /* delta(L-1) .. delta(1) */
-        size_t counter_index = deltas_out_index;
+        size_t intermediate_products_index = intermediate_products_len - out_len;
+        size_t deltas_index = deltas_out_index;
         for (size_t i = nn->layers_len - 1; i > 0; --i) {
-            const size_t res_len = nn->units_configuration[i] + 1;
+            const size_t res_len = nn->units_configuration[i];
             float res[res_len];
 
+            /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
             nn_matrix_mul(
-                nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
-                deltas + counter_index, nn->units_configuration[i+1], 1,
+                nn->layers[i] + nn->units_configuration[i+1], nn->units_configuration[i], nn->units_configuration[i+1],
+                deltas + deltas_index, nn->units_configuration[i+1], 1,
                 res
             );
 
-            /* Starting from 1, excluding the bias delta */
-            for (size_t j = 1; j < res_len; ++j) {
-                res[j] *= nn->activations_derivative[i-1](intermediate_products[counter_index+j]);
+            for (size_t j = 0; j < res_len; ++j) {
+                res[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
             }
 
-            counter_index -= res_len;
-            memcpy(deltas + counter_index, res, res_len*sizeof(float));
+            intermediate_products_index -= res_len + 1;
+            deltas_index -= res_len;
+            memcpy(deltas + deltas_index, res, res_len*sizeof(float));
         }
 
         /*
@@ -392,7 +397,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         where a(l) is the output ('f(z(l))') of the layer l.
         */
 
-        counter_index = 0;
+        size_t counter_index = 0;
+        deltas_index = 0;
         for (size_t i = 0; i < nn->layers_len; ++i) {
             float intermediate_activations_i[nn->units_configuration[i] + 1];
 
@@ -408,7 +414,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                         intermediate_activations_i[j] = intermediate_products[counter_index+j];
                     }
                     else {
-                        intermediate_activations_i[j] = nn->activations[i-1](intermediate_products[counter_index+j]);                        
+                        intermediate_activations_i[j] = nn->activations[i-1](intermediate_products[counter_index+j]);
                     }
                 }
             }
@@ -417,7 +423,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
             nn_matrix_mul(
                 intermediate_activations_i, nn->units_configuration[i] + 1, 1,
-                deltas + counter_index, 1, nn->units_configuration[i+1],
+                deltas + deltas_index, 1, nn->units_configuration[i+1],
                 res
             );
 
@@ -427,6 +433,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
 
             counter_index += nn->units_configuration[i] + 1;
+            deltas_index += nn->units_configuration[i+1];
         }
 
         epoch++;
