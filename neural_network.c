@@ -330,7 +330,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
         error *= 1.0/(2.0*out_len*train_len);
-        if (epoch % 1000 == 0) printf("Error = %f\n", error);
+        if (epoch % 100000 == 0) printf("Error = %f\n", error);
 
         /*
         ================
