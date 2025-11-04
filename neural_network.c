@@ -333,108 +333,124 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         if (epoch % 100000 == 0) printf("Error = %f\n", error);
 
         /*
-        ================
-        / Feed forward /
-        ================
+        =================
+        / Mini batch GD /
+        =================
         */
 
-        /*
-        We use stochastic gradient descente, so we need to feed a random training example to the neural network.
-        */
-        const int rand_i = rand() % train_len;
-        nn_feed_forward(nn, x_train + rand_i * nn->units_configuration[0], out, intermediate_products);
+        float *gradient_acc = calloc(nn->weights_len, sizeof(float)); //TODO make nn_calloc
+        #define BATCH_SIZE 4
+        for (size_t batch_i = 0; batch_i < BATCH_SIZE; ++batch_i) {
 
-        /*
-        ===================
-        / Backpropagation /
-        ===================
-        */
+            /*
+            ================
+            / Feed forward /
+            ================
+            */
 
-        /*
-        Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
+            nn_feed_forward(nn, x_train + batch_i * nn->units_configuration[0], out, intermediate_products);
 
-        We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
+            /*
+            ===================
+            / Backpropagation /
+            ===================
+            */
 
-        delta(L) (where L is the output layer) = 'a(L) - y_train(i)', where a(L) is the feed forward output.
+            /*
+            Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 
-        delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) .* f'(z(l))',
-        where z(l) is the intermediate product at layer l and f' the derivative of the activation of that layer.
-        */
+            We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
 
-        /* delta(L) */
-        const size_t deltas_out_index = deltas_len - out_len;
-        for (size_t i = 0; i < out_len; ++i) {
-            deltas[deltas_out_index + i] = out[i] - y_train[rand_i*out_len + i];
-        }
+            delta(L) (where L is the output layer) = 'a(L) - y_train(i)', where a(L) is the feed forward output.
 
-        /* delta(L-1) .. delta(1) */
-        size_t intermediate_products_index = intermediate_products_len - out_len;
-        size_t deltas_index = deltas_out_index;
-        for (size_t i = nn->layers_len - 1; i > 0; --i) {
-            const size_t res_len = nn->units_configuration[i];
-            float res[res_len];
+            delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) .* f'(z(l))',
+            where z(l) is the intermediate product at layer l and f' the derivative of the activation of that layer.
+            */
 
-            /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
-            nn_matrix_mul(
-                nn->layers[i] + nn->units_configuration[i+1], nn->units_configuration[i], nn->units_configuration[i+1],
-                deltas + deltas_index, nn->units_configuration[i+1], 1,
-                res
-            );
-
-            for (size_t j = 0; j < res_len; ++j) {
-                res[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
+            /* delta(L) */
+            const size_t deltas_out_index = deltas_len - out_len;
+            for (size_t i = 0; i < out_len; ++i) {
+                deltas[deltas_out_index + i] = out[i] - y_train[batch_i*out_len + i];
             }
 
-            intermediate_products_index -= res_len + 1;
-            deltas_index -= res_len;
-            memcpy(deltas + deltas_index, res, res_len*sizeof(float));
-        }
+            /* delta(L-1) .. delta(1) */
+            size_t intermediate_products_index = intermediate_products_len - out_len;
+            size_t deltas_index = deltas_out_index;
+            for (size_t i = nn->layers_len - 1; i > 0; --i) {
+                const size_t res_len = nn->units_configuration[i];
+                float res[res_len];
 
-        /*
-        Now we have all the delta(i) and we can calculate the gradient(l) (gradient of the layer l) for each l.
+                /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
+                nn_matrix_mul(
+                    nn->layers[i] + nn->units_configuration[i+1], nn->units_configuration[i], nn->units_configuration[i+1],
+                    deltas + deltas_index, nn->units_configuration[i+1], 1,
+                    res
+                );
 
-        gradient(l) = 'delta(l+1) * transpose(a(l))',
-        where a(l) is the output ('f(z(l))') of the layer l.
-        */
+                for (size_t j = 0; j < res_len; ++j) {
+                    res[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
+                }
 
-        size_t counter_index = 0;
-        deltas_index = 0;
-        for (size_t i = 0; i < nn->layers_len; ++i) {
-            float intermediate_activations_i[nn->units_configuration[i] + 1];
+                intermediate_products_index -= res_len + 1;
+                deltas_index -= res_len;
+                memcpy(deltas + deltas_index, res, res_len*sizeof(float));
+            }
 
-            for (size_t j = 0; j < nn->units_configuration[i] + 1; ++j) {
-                /*
-                if counter_index == 0 then the first activation a(l) is just the input,
-                and so it does not have an activation function
-                */
-                if (counter_index == 0) {
-                    intermediate_activations_i[j] = intermediate_products[counter_index+j];
-                } else {
-                    if (j == 0) { /* Bias term doesn't have activation function */
+            /*
+            Now we have all the delta(i) and we can calculate the gradient(l) (gradient of the layer l) for each l.
+
+            gradient(l) = 'delta(l+1) * transpose(a(l))',
+            where a(l) is the output ('f(z(l))') of the layer l.
+            */
+
+            size_t counter_index = 0;
+            size_t gradient_acc_index = 0;
+            deltas_index = 0;
+            for (size_t i = 0; i < nn->layers_len; ++i) {
+                float intermediate_activations_i[nn->units_configuration[i] + 1];
+
+                for (size_t j = 0; j < nn->units_configuration[i] + 1; ++j) {
+                    /*
+                    if counter_index == 0 then the first activation a(l) is just the input,
+                    and so it does not have an activation function
+                    */
+                    if (counter_index == 0) {
                         intermediate_activations_i[j] = intermediate_products[counter_index+j];
-                    }
-                    else {
-                        intermediate_activations_i[j] = nn->activations[i-1](intermediate_products[counter_index+j]);
+                    } else {
+                        if (j == 0) { /* Bias term doesn't have activation function */
+                            intermediate_activations_i[j] = intermediate_products[counter_index+j];
+                        }
+                        else {
+                            intermediate_activations_i[j] = nn->activations[i-1](intermediate_products[counter_index+j]);
+                        }
                     }
                 }
+
+                float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
+
+                nn_matrix_mul(
+                    intermediate_activations_i, nn->units_configuration[i] + 1, 1,
+                    deltas + deltas_index, 1, nn->units_configuration[i+1],
+                    res
+                );
+
+                /* Gradient accumulation */
+                for (size_t j = 0; j < (nn->units_configuration[i] + 1) * nn->units_configuration[i+1]; ++j) {
+                    gradient_acc[gradient_acc_index + j] += res[j];
+                }
+                gradient_acc_index += (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
+
+                counter_index += nn->units_configuration[i] + 1;
+                deltas_index += nn->units_configuration[i+1];
             }
-
-            float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
-
-            nn_matrix_mul(
-                intermediate_activations_i, nn->units_configuration[i] + 1, 1,
-                deltas + deltas_index, 1, nn->units_configuration[i+1],
-                res
-            );
-
-            /* weights update */
-            for (size_t j = 0; j < (nn->units_configuration[i] + 1) * nn->units_configuration[i+1]; ++j) {
-                *(nn->layers[i] + j) -= learning_rate * res[j];
-            }
-
-            counter_index += nn->units_configuration[i] + 1;
-            deltas_index += nn->units_configuration[i+1];
         }
+
+        /* Update weights */
+        for (size_t j = 0; j < nn->weights_len; ++j) {
+            nn->weights[j] -= learning_rate * gradient_acc[j];
+        }
+
+        free(gradient_acc);
 
         epoch++;
     }
