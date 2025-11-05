@@ -309,7 +309,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x, out, NULL);
 }
 
-void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold) {
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, NN_train_opt *opt) {
     float error = FLT_MAX;
     size_t epoch = 0;
 
@@ -332,7 +332,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
     float deltas[deltas_len];
 
-    while (error > err_threshold) {
+    while (error > opt->err_threshold) {
 
         /* Getting the current error, using the MSE */
         error = 0.0;
@@ -344,7 +344,13 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
         error *= 1.0/(2.0*out_len*train_len);
-        if (epoch % 100000 == 0) printf("Error = %f\n", error);
+
+        if (opt->err_epoch_logging >= 0) {
+            if (epoch % opt->err_epoch_logging == 0) {
+                printf("Error = %f\n", error);
+            }
+        }
+
 
         /*
         =================
@@ -353,8 +359,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         */
 
         float *gradient_acc = calloc(nn->weights_len, sizeof(float)); //TODO make nn_calloc
-        #define BATCH_SIZE 4
-        for (size_t batch_i = 0; batch_i < BATCH_SIZE; ++batch_i) {
+        for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
 
             /*
             ================
@@ -469,7 +474,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
         /* Update weights */
         for (size_t j = 0; j < nn->weights_len; ++j) {
-            nn->weights[j] -= learning_rate * gradient_acc[j];
+            nn->weights[j] -= opt->learning_rate * gradient_acc[j];
         }
 
         free(gradient_acc);

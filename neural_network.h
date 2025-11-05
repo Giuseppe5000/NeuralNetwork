@@ -16,6 +16,19 @@ enum Weight_initialization {
     NN_GLOROT,
 };
 
+typedef struct {
+    float learning_rate;
+    float err_threshold;
+
+    /*
+    After how much epochs the error will be logged.
+    For negative numbers no logging will occur.
+    */
+    int err_epoch_logging;
+
+    size_t mini_batch_size;
+} NN_train_opt;
+
 /*
 Initialize the nn, allocating the weights according to the 'units_configuration' and setting their value according to the stategy 'w_init'.
 'units_activation' is an array of length 'units_configuration_len' that specify the activation function for each layer.
@@ -68,7 +81,7 @@ Train the neural network.
 'x_train' is a matrix of 'train_len' rows and 'units_configuration[0]' columns.
 'y_train' is a matrix of 'train_len' rows and 'units_configuration[units_configuration_len - 1]' columns.
 */
-void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, float learning_rate, float err_threshold);
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, NN_train_opt *opt);
 
 /*
 Feed forward the network.

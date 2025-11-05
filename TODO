@@ -1,2 +1,2 @@
 Introduce new weight inits for decrese the vanishing gradient problem.
-Change the nn_train API adding the batch_size, print_interval (maybe make a struct like NN_train_opt).
+Fix mini batch taking random n elements each time.

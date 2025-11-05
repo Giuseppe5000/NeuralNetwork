@@ -26,9 +26,15 @@ int main(void) {
     };
 
     const size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
-    const float learning_rate = 0.0001;
-    const float err_threshold = 0.001;
-    nn_fit(nn, x_train, y_train, train_len, learning_rate, err_threshold);
+
+    NN_train_opt opt = {
+        .learning_rate = 0.0001,
+        .err_threshold = 0.001,
+        .err_epoch_logging = 100000,
+        .mini_batch_size = train_len,
+    };
+
+    nn_fit(nn, x_train, y_train, train_len, &opt);
 
     /* Test */
     float out[1];
