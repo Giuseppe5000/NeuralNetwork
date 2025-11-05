@@ -401,7 +401,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
             We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
 
-            delta(L) (where L is the output layer) = 'a(L) - y_train(i)', where a(L) is the feed forward output.
+            delta(L) (where L is the output layer) = '(a(L) - y_train(i)) .* f'(z(L))', where a(L) is the feed forward output.
 
             delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) .* f'(z(l))',
             where z(l) is the intermediate product at layer l and f' the derivative of the activation of that layer.
@@ -409,16 +409,18 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
             /* delta(L) */
             const size_t deltas_out_index = deltas_len - out_len;
+            size_t intermediate_products_index = intermediate_products_len - out_len;
             for (size_t i = 0; i < out_len; ++i) {
                 deltas[deltas_out_index + i] = out[i] - y_train[batch_i*out_len + i];
+                deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](intermediate_products[intermediate_products_index+i]);
             }
 
             /* delta(L-1) .. delta(1) */
-            size_t intermediate_products_index = intermediate_products_len - out_len;
             size_t deltas_index = deltas_out_index;
             for (size_t i = nn->layers_len - 1; i > 0; --i) {
                 const size_t res_len = nn->units_configuration[i];
                 float res[res_len];
+                intermediate_products_index -= res_len + 1;
 
                 /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
                 float layers_transpose[nn->units_configuration[i] * nn->units_configuration[i+1]];
@@ -439,7 +441,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                     res[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
                 }
 
-                intermediate_products_index -= res_len + 1;
                 deltas_index -= res_len;
                 memcpy(deltas + deltas_index, res, res_len*sizeof(float));
             }

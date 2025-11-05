@@ -1,2 +1,2 @@
-Introduce new weight inits for decrese the vanishing gradient problem.
 Fix mini batch taking random n elements each time.
+VLAs can cause stack overflow.
