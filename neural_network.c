@@ -77,12 +77,24 @@ static float randf(float min, float max) {
 }
 
 /*
-Glorot initialization
+Glorot initialization.
 https://en.wikipedia.org/wiki/Weight_initialization#Glorot_initialization
 */
-static float glorot(size_t n_in, size_t n_out) {
-    const float x = sqrtf(6.0 / (n_in + n_out));
+static float glorot(size_t fan_in, size_t fan_out) {
+    const float x = sqrtf(6.0 / (fan_out + fan_in));
     return randf(-x, x);
+}
+
+/*
+He initialization using Box-Muller transform.
+https://en.wikipedia.org/wiki/Weight_initialization#He_initialization
+*/
+static float he(size_t fan_out) {
+    const float stddev = sqrtf(2.0 / fan_out);
+    const float u1 = ((float) rand()) / (RAND_MAX);
+    const float u2 = ((float)rand()) / (RAND_MAX);
+    const float z0 = sqrtf(-2.0 * logf(u1)) * cosf(2.0 * M_PI * u2);
+    return z0 * stddev;
 }
 
 /*
@@ -189,7 +201,10 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
                     *weight = randf(-0.01,0.01);
                     break;
                 case NN_GLOROT:
-                    *weight = glorot(units_configuration[i] + 1, units_configuration[i+1]);
+                    *weight = glorot(units_configuration[i+1], units_configuration[i] + 1);
+                    break;
+                case NN_HE:
+                    *weight = he(units_configuration[i+1]);
                     break;
                 default:
                     assert(0 && "Unreachable");

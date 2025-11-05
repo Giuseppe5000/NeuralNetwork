@@ -14,6 +14,7 @@ enum Activation {
 enum Weight_initialization {
     NN_UNIFORM,
     NN_GLOROT,
+    NN_HE,
 };
 
 typedef struct {
