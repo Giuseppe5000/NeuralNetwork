@@ -32,13 +32,13 @@ typedef struct {
 
 /*
 Initialize the nn, allocating the weights according to the 'units_configuration' and setting their value according to the stategy 'w_init'.
-'units_activation' is an array of length 'units_configuration_len' that specify the activation function for each layer.
+'units_activation' is an array of length 'units_configuration_len - 1' that specify the activation function for each layer.
 
 [NOTE]: Bias terms are implicit.
 
 Example:
     size_t units_configuration[] = {3, 2, 1};
-    enum Activation units_activation[] = {NN_SIGMOID, NN_TANH, NN_RELU};
+    enum Activation units_activation[] = {NN_SIGMOID, NN_TANH};
 
                 b0
              |> x0   b1
