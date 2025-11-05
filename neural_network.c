@@ -377,6 +377,9 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         =================
         */
 
+        /* Reset gradient accumulator */
+        memset(gradient_acc, 0, nn->weights_len * sizeof(float));
+
         for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
 
             /*
@@ -447,9 +450,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             gradient(l) = 'delta(l+1) * transpose(a(l))',
             where a(l) is the output ('f(z(l))') of the layer l.
             */
-
-            /* Reset gradient accumulator */
-            memset(gradient_acc, 0, nn->weights_len * sizeof(float));
 
             size_t counter_index = 0;
             size_t gradient_acc_index = 0;
