@@ -213,8 +213,8 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
     }
 
     /* Activation functions initialize */
-    nn->activations = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation *));
-    nn->activations_derivative = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation_derivative *));
+    nn->activations = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation));
+    nn->activations_derivative = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation_derivative));
 
     for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         switch (units_activation[i]) {
