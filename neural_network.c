@@ -347,6 +347,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
     float deltas[deltas_len];
 
+    /* Array for accumulate gradients */
+    float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
+
+
     while (error > opt->err_threshold) {
 
         /* Getting the current error, using the MSE */
@@ -369,11 +373,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
         /*
         =================
-        / Mini batch GD /
+        / Mini batch GD / (NOT YET)
         =================
         */
 
-        float *gradient_acc = calloc(nn->weights_len, sizeof(float)); //TODO make nn_calloc
         for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
 
             /*
@@ -445,6 +448,9 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             where a(l) is the output ('f(z(l))') of the layer l.
             */
 
+            /* Reset gradient accumulator */
+            memset(gradient_acc, 0, nn->weights_len * sizeof(float));
+
             size_t counter_index = 0;
             size_t gradient_acc_index = 0;
             deltas_index = 0;
@@ -489,11 +495,11 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
         /* Update weights */
         for (size_t j = 0; j < nn->weights_len; ++j) {
-            nn->weights[j] -= opt->learning_rate * gradient_acc[j];
+            nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / opt->mini_batch_size);
         }
-
-        free(gradient_acc);
 
         epoch++;
     }
+
+    free(gradient_acc);
 }
