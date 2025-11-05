@@ -81,7 +81,7 @@ Train the neural network.
 'x_train' is a matrix of 'train_len' rows and 'units_configuration[0]' columns.
 'y_train' is a matrix of 'train_len' rows and 'units_configuration[units_configuration_len - 1]' columns.
 */
-void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, NN_train_opt *opt);
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt);
 
 /*
 Feed forward the network.

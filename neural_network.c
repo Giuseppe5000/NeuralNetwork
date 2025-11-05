@@ -309,7 +309,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x, out, NULL);
 }
 
-void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, NN_train_opt *opt) {
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
     float error = FLT_MAX;
     size_t epoch = 0;
 

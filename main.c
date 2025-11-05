@@ -27,7 +27,7 @@ int main(void) {
 
     const size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
 
-    NN_train_opt opt = {
+    const NN_train_opt opt = {
         .learning_rate = 0.0001,
         .err_threshold = 0.001,
         .err_epoch_logging = 100000,
