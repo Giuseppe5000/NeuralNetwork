@@ -106,6 +106,20 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
         }
     }
 }
+
+/*
+Puts into 'res' (matrix of 'A_col' rows and 'A_rows' cols) the transpose of 'A'.
+*/
+static void nn_matrix_transpose(const float *A, size_t A_rows, size_t A_cols, float *res) {
+    const size_t res_rows = A_cols;
+    const size_t res_cols = A_rows;
+
+    for (size_t row = 0; row < A_rows; ++row) {
+        for (size_t col = 0; col < A_cols; ++col) {
+            res[col*res_cols + row] = A[row*A_cols + col];
+        }
+    }
+}
 /* ================================================================= */
 
 
@@ -381,9 +395,17 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 float res[res_len];
 
                 /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
+                float layers_transpose[nn->units_configuration[i] * nn->units_configuration[i+1]];
+                nn_matrix_transpose(
+                    nn->layers[i] + nn->units_configuration[i+1],
+                    nn->units_configuration[i],
+                    nn->units_configuration[i+1],
+                    layers_transpose
+                );
+
                 nn_matrix_mul(
-                    nn->layers[i] + nn->units_configuration[i+1], nn->units_configuration[i], nn->units_configuration[i+1],
-                    deltas + deltas_index, nn->units_configuration[i+1], 1,
+                    deltas + deltas_index, 1, nn->units_configuration[i+1],
+                    layers_transpose, nn->units_configuration[i+1], nn->units_configuration[i],
                     res
                 );
 

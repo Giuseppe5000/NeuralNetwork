@@ -25,9 +25,10 @@ int main(void) {
         0,
     };
 
-    size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
-    printf("train_len = %zu\n", train_len);
-    nn_fit(nn, x_train, y_train, train_len, 0.001, 0.001);
+    const size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
+    const float learning_rate = 0.0001;
+    const float err_threshold = 0.001;
+    nn_fit(nn, x_train, y_train, train_len, learning_rate, err_threshold);
 
     /* Test */
     float out[1];

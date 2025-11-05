@@ -1,1 +1,2 @@
-The backprop doesn't convers on nn with hidden layers.
+Introduce new weight inits for decrese the vanishing gradient problem.
+Change the nn_train API adding the batch_size, print_interval (maybe make a struct like NN_train_opt).
