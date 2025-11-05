@@ -370,7 +370,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
 
-
         /*
         =================
         / Mini batch GD / (NOT YET)
@@ -418,31 +417,31 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             /* delta(L-1) .. delta(1) */
             size_t deltas_index = deltas_out_index;
             for (size_t i = nn->layers_len - 1; i > 0; --i) {
-                const size_t res_len = nn->units_configuration[i];
+                const size_t res_len = nn->units_configuration[i] + 1;
                 float res[res_len];
-                intermediate_products_index -= res_len + 1;
+                intermediate_products_index -= res_len;
 
                 /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
                 float layers_transpose[nn->units_configuration[i] * nn->units_configuration[i+1]];
                 nn_matrix_transpose(
-                    nn->layers[i] + nn->units_configuration[i+1],
-                    nn->units_configuration[i],
+                    nn->layers[i],
+                    nn->units_configuration[i] + 1,
                     nn->units_configuration[i+1],
                     layers_transpose
                 );
 
                 nn_matrix_mul(
                     deltas + deltas_index, 1, nn->units_configuration[i+1],
-                    layers_transpose, nn->units_configuration[i+1], nn->units_configuration[i],
+                    layers_transpose, nn->units_configuration[i+1], nn->units_configuration[i] + 1,
                     res
                 );
 
-                for (size_t j = 0; j < res_len; ++j) {
+                for (size_t j = 1; j < res_len; ++j) {
                     res[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
                 }
 
-                deltas_index -= res_len;
-                memcpy(deltas + deltas_index, res, res_len*sizeof(float));
+                deltas_index -= res_len - 1;
+                memcpy(deltas + deltas_index, res + 1, (res_len - 1)*sizeof(float));
             }
 
             /*

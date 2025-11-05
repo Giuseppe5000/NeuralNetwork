@@ -5,7 +5,7 @@ int main(void) {
     size_t units_configuration[] = {2, 3, 1};
     size_t units_configuration_len = sizeof(units_configuration) / sizeof(units_configuration[0]);
 
-    enum Activation units_activation[] = {NN_RELU, NN_RELU};
+    enum Activation units_activation[] = {NN_SIGMOID, NN_SIGMOID};
 
     NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
@@ -28,9 +28,9 @@ int main(void) {
     const size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
 
     const NN_train_opt opt = {
-        .learning_rate = 0.0001,
+        .learning_rate = 0.5,
         .err_threshold = 0.001,
-        .err_epoch_logging = 100000,
+        .err_epoch_logging = 1000,
         .mini_batch_size = train_len,
     };
 
