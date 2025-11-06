@@ -469,7 +469,7 @@ static void backpropagation(NN *nn, size_t batch_i, float *y_train, float *out, 
         intermediate_products_index -= res_len;
 
         /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
-        float layers_transpose[nn->units_configuration[i] * nn->units_configuration[i+1]];
+        float layers_transpose[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
         nn_matrix_transpose(
             nn->layers[i],
             nn->units_configuration[i] + 1,
