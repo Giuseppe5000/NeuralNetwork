@@ -20,6 +20,7 @@ make
 And you'll find all the examples executables in the ```build_examples``` directory.
 
 ## TODOs
+- [ ] Optimize the use of intermediate_products in feed\_forward (by removing the res var). But in this way should store the activations and not the products. (Btw intermediate\_products can be stored on the NN struct).\ Maybe i can store on NN both intermediate\_products and intermediate\_activations.
 - [ ] Fix mini batch implementation by taking random n elements each time (at the moment takes always the first n elements, so it is wrong).
 - [x] VLAs can cause stack overflow, so it is better to use nn_malloc and free for the big arrays.
 - [ ] Simplify the code where is possible.
