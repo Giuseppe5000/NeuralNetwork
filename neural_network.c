@@ -343,7 +343,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
     /* Array for storing the output */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    float *out = malloc(out_len*sizeof(float));
+    float *out = nn_malloc(out_len*sizeof(float));
 
     /* Array for storing deltas*/
     size_t deltas_len = 0;
@@ -354,7 +354,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
     /* Array for accumulate gradients */
     float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
-
 
     while (error > opt->err_threshold) {
 

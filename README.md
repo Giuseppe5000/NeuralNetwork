@@ -21,6 +21,7 @@ And you'll find all the examples executables in the ```build_examples``` directo
 
 ## TODOs
 - [ ] Fix mini batch implementation by taking random n elements each time (at the moment takes always the first n elements, so it is wrong).
-- [ ] VLAs can cause stack overflow, so it is better to use nn_malloc and free for the big arrays.
+- [x] VLAs can cause stack overflow, so it is better to use nn_malloc and free for the big arrays.
 - [ ] Simplify the code where is possible.
+- [ ] Check const correctness
 - [ ] Improve comments and documentation.
