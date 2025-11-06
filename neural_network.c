@@ -231,7 +231,8 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
                 (nn->activations_derivative)[i] = tanh_derivative;
                 break;
             default:
-                assert(0 && "Unreachable");
+                fprintf(stderr, "[ERROR]: Check if the 'units_activation' length == units_configuration_len - 1.\n");
+                exit(1);
         }
     }
 
