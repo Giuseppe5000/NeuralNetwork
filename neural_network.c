@@ -329,7 +329,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x, out, NULL);
 }
 
-static void backpropagation();
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *out, size_t out_len, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc);
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
     float error = FLT_MAX;
@@ -440,7 +440,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     free(gradient_acc);
 }
 
-static void backpropagation(NN *nn, size_t batch_i, float *y_train, float *out, size_t out_len, float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *out, size_t out_len, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc) {
 
     /*
     We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
