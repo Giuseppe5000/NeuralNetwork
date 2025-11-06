@@ -31,7 +31,7 @@ int main(void) {
         .learning_rate = 0.5,
         .err_threshold = 0.0001,
         .err_epoch_logging = 1000,
-        .mini_batch_size = train_len,
+        .mini_batch_size = 1,
     };
 
     nn_fit(nn, x_train, y_train, train_len, &opt);

@@ -27,7 +27,7 @@ typedef struct {
     */
     int err_epoch_logging;
 
-    size_t mini_batch_size;
+    size_t mini_batch_size; /* Values in [1..train_len] */
 } NN_train_opt;
 
 /*
