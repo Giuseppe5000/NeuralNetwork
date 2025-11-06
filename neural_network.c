@@ -274,7 +274,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
         }
     }
 
-    float input[max_neurons + 1];
+    float *input = nn_malloc((max_neurons + 1)*sizeof(float));
     input[0] = 1.0; /* Bias */
     memcpy(input + 1, x, x_cols * sizeof(float));
 
@@ -321,6 +321,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
     }
 
     memcpy(out, input + 1, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
+    free(input);
 }
 
 void nn_predict(NN *nn, const float *x, float *out) {
@@ -337,18 +338,18 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         intermediate_products_len += nn->units_configuration[i] + 1; /* Number of neurons + bias */
     }
     intermediate_products_len--; /* Last layer don't have bias */
-    float intermediate_products[intermediate_products_len];
+    float *intermediate_products = nn_malloc(intermediate_products_len*sizeof(float));
 
     /* Array for storing the output */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    float out[out_len];
+    float *out = malloc(out_len*sizeof(float));
 
     /* Array for storing deltas*/
     size_t deltas_len = 0;
     for (size_t i = 1; i < nn->units_configuration_len; ++i) {
         deltas_len += nn->units_configuration[i];
     }
-    float deltas[deltas_len];
+    float *deltas = nn_malloc(deltas_len*sizeof(float));
 
     /* Array for accumulate gradients */
     float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
@@ -504,5 +505,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         epoch++;
     }
 
+    free(intermediate_products);
+    free(out);
+    free(deltas);
     free(gradient_acc);
 }
