@@ -7,6 +7,10 @@
 #include <assert.h>
 #include <float.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* ======================== Data structures ======================== */
 typedef float (*nn_activation)(float);
 typedef float (*nn_activation_derivative)(float);
@@ -123,7 +127,6 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
 Puts into 'res' (matrix of 'A_col' rows and 'A_rows' cols) the transpose of 'A'.
 */
 static void nn_matrix_transpose(const float *A, size_t A_rows, size_t A_cols, float *res) {
-    const size_t res_rows = A_cols;
     const size_t res_cols = A_rows;
 
     for (size_t row = 0; row < A_rows; ++row) {
@@ -255,7 +258,7 @@ The prediction result will be put in the 'res' array of length 'units_configurat
 
 The intermediate products will be put in the 'intermediate_products' array IF it is not NULL.
 Its length has to be the sum of the elements of nn->units_configuration + the biases:
-    so, nn->units_configuration[0] + .. + nn->units_configuration[nn->units_configuration_len - 1] + biases.
+    so, (nn->units_configuration[0] + 1) +  (nn->units_configuration[1] + 1) + .. + (nn->units_configuration[nn->units_configuration_len - 1]).
 */
 static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermediate_products) {
     size_t x_cols = nn->units_configuration[0];
@@ -299,9 +302,12 @@ static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermedi
 
         /* Saving intermediate products */
         if (intermediate_products != NULL) {
+
+            /* If we are on an itermediate layer then we have to add the bias terms */
             if (i != nn->layers_len - 1) {
-                intermediate_products[intermediate_products_counter++] = 1.0; /* Bias */
+                intermediate_products[intermediate_products_counter++] = 1.0;
             }
+
             for (size_t j = 0; j < res_len; ++j) {
                 intermediate_products[intermediate_products_counter++] = res[j];
             }
