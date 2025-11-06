@@ -95,8 +95,8 @@ https://en.wikipedia.org/wiki/Weight_initialization#He_initialization
 */
 static float he(size_t fan_out) {
     const float stddev = sqrtf(2.0 / fan_out);
-    const float u1 = ((float) rand()) / (RAND_MAX);
-    const float u2 = ((float)rand()) / (RAND_MAX);
+    const float u1 = (float)rand() / (float)RAND_MAX;
+    const float u2 = (float)rand() / (float)RAND_MAX;
     const float z0 = sqrtf(-2.0 * logf(u1)) * cosf(2.0 * M_PI * u2);
     return z0 * stddev;
 }
