@@ -112,13 +112,10 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
 
     for (size_t row = 0; row < A_rows; ++row) {
         for (size_t col = 0; col < B_cols; ++col) {
-            float dot_prod = 0.0;
-
+            res[row*B_cols + col] = 0;
             for (size_t i = 0; i < A_cols; ++i) {
-                dot_prod += A[row*A_cols + i] * B[i*B_cols + col];
+                res[row*B_cols + col] += A[row*A_cols + i] * B[i*B_cols + col];
             }
-
-            res[row*B_cols + col] = dot_prod;
         }
     }
 }
