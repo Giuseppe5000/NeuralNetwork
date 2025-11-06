@@ -1,2 +1,4 @@
-Fix mini batch taking random n elements each time.
-VLAs can cause stack overflow.
+1) Fix mini batch taking random n elements each time.
+2) VLAs can cause stack overflow, so better use nn_malloc and free for the big ones.
+3) Simplify the code where is possible.
+4) Improve comments and documentation.
