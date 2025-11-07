@@ -264,6 +264,7 @@ void nn_free(NN *nn) {
     free(nn->layers);
     free(nn->activations);
     free(nn->activations_derivative);
+    free(nn->intermediate_activations);
     free(nn);
 }
 
@@ -286,11 +287,11 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
     memcpy(nn->intermediate_activations + 1, x, x_cols * sizeof(float));
 
     /* Copy input into intermidiate product */
-    size_t intermediate_products_counter = 0;
+    float *intermediate_i = NULL;
     if (intermediate_products != NULL) {
         intermediate_products[0] = 1.0;
         memcpy(intermediate_products + 1, x, x_cols * sizeof(float));
-        intermediate_products_counter += x_cols + 1;
+        intermediate_i = intermediate_products + x_cols + 1;
     }
 
     /* Feed forward through the nn layers */
@@ -300,31 +301,37 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
     for (size_t i = 0; i < nn->layers_len; ++i) {
         size_t res_len = nn->units_configuration[i+1];
 
+        const unsigned int is_not_last_layer = (i != nn->layers_len - 1) ? 1 : 0;
+
         nn_matrix_mul(
             activations_i, x_rows, x_cols + 1, /* + 1 is for multiply the bias weights */
             nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
-            activations_i_next + 1
+            activations_i_next + is_not_last_layer
         );
 
         /* Bias for next iteration */
-        if (i != nn->layers_len - 1) {
+        if (is_not_last_layer) {
             activations_i_next[0] = 1.0;
         }
 
         /* Saving intermediate products */
         if (intermediate_products != NULL) {
-            for (size_t j = 0; j < res_len + 1; ++j) {
-                intermediate_products[intermediate_products_counter++] = activations_i_next[j];
+            if (is_not_last_layer) {
+                memcpy(intermediate_i, activations_i_next, (res_len+1)*sizeof(float));
+            }
+            else {
+                memcpy(intermediate_i, activations_i_next, (res_len)*sizeof(float));
             }
         }
 
         /* Applying activation function */
-        for (size_t j = 1; j < res_len + 1; ++j) {
+        for (size_t j = is_not_last_layer; j < res_len + is_not_last_layer; ++j) {
             activations_i_next[j] = nn->activations[i](activations_i_next[j]);
         }
 
         activations_i = activations_i_next;
-        activations_i_next += x_cols + 1;
+        activations_i_next += res_len + is_not_last_layer;
+        if (intermediate_products != NULL) intermediate_i += res_len + is_not_last_layer;
         x_cols = nn->units_configuration[i+1];
     }
 }
@@ -507,7 +514,6 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     where a(l) is the output ('f(z(l))') of the layer l.
     */
 
-    size_t counter_index = 0;
     size_t gradient_acc_index = 0;
     deltas_index = 0;
     float *activations_i = nn->intermediate_activations;
@@ -527,7 +533,6 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
         gradient_acc_index += (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
 
         activations_i += nn->units_configuration[i] + 1;
-        counter_index += nn->units_configuration[i] + 1;
         deltas_index += nn->units_configuration[i+1];
     }
 }
