@@ -358,13 +358,13 @@ void nn_predict(NN *nn, const float *x, float *out) {
 static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad);
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
-    float error = FLT_MAX;
-    size_t epoch = 0;
-
-    if (opt->mini_batch_size < 1) {
+    if (opt->mini_batch_size < 1 || opt->mini_batch_size > train_len) {
         fprintf(stderr, "[ERROR]: mini_batch_size has to be in interval [1..train_len].");
         exit(1);
     }
+
+    float error = FLT_MAX;
+    size_t epoch = 0;
 
     /* Array for storing the intermediate products in the feed forward */
     size_t intermediate_products_len = nn->intermediate_activations_len;
@@ -393,8 +393,11 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
     float *scratchpad = nn_malloc(largest_layer_size * sizeof(float));
 
-    /* Selected training data if using Mini-batch GD*/
-    size_t *mini_batch_indexes = nn_malloc(opt->mini_batch_size * sizeof(size_t));
+    /* Array of index, that will be shuffled in order to do Stochastic and Mini-batch GD */
+    size_t *train_indexes = nn_malloc(train_len * sizeof(size_t));
+    for (size_t i = 0; i < train_len; ++i) {
+        train_indexes[i] = i;
+    }
 
     /* Getting output from intermediate activation */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
@@ -429,32 +432,27 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         /* Reset gradient accumulator */
         memset(gradient_acc, 0, nn->weights_len * sizeof(float));
 
-        if (opt->mini_batch_size == 1) {
-            /* Stochastic GD */
-            mini_batch_indexes[0] = rand() % train_len;
-
-        } else if (opt->mini_batch_size > 1 && opt->mini_batch_size < train_len) {
-            /* Mini-batch GD */
-            /* TODO */
+        /* Shuffle train_indexes using Fisher–Yates shuffle algorithm */
+        for (size_t i = train_len - 1; i > 0; --i) {
+            size_t j = rand() % (i+1);
+            size_t tmp = train_indexes[i];
+            train_indexes[i] = train_indexes[j];
+            train_indexes[j] = tmp;
         }
 
-        for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
+        for (size_t i = 0; i < train_len; i+=opt->mini_batch_size) {
+            for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
+                size_t train_i = train_indexes[i + batch_i];
 
-            size_t train_i = mini_batch_indexes[batch_i];
-            if (opt->mini_batch_size == train_len) {
-                /* Batch GD */
-                train_i = batch_i;
+                nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0], intermediate_products);
+                backpropagation(nn, train_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc, scratchpad);
             }
 
-            nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0], intermediate_products);
-            backpropagation(nn, train_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc, scratchpad);
+            /* Update weights using the gradients */
+            for (size_t j = 0; j < nn->weights_len; ++j) {
+                nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / opt->mini_batch_size);
+            }
         }
-
-         /* Update weights using the gradients */
-        for (size_t j = 0; j < nn->weights_len; ++j) {
-            nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / opt->mini_batch_size);
-        }
-
         epoch++;
     }
 
@@ -462,7 +460,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     free(deltas);
     free(gradient_acc);
     free(scratchpad);
-    free(mini_batch_indexes);
+    free(train_indexes);
 }
 
 /*
