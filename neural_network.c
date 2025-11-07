@@ -429,9 +429,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         ==================================
         */
 
-        /* Reset gradient accumulator */
-        memset(gradient_acc, 0, nn->weights_len * sizeof(float));
-
         /* Shuffle train_indexes using Fisher–Yates shuffle algorithm */
         for (size_t i = train_len - 1; i > 0; --i) {
             size_t j = rand() % (i+1);
@@ -441,6 +438,9 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         }
 
         for (size_t i = 0; i < train_len; i+=opt->mini_batch_size) {
+            /* Reset gradient accumulator */
+            memset(gradient_acc, 0, nn->weights_len * sizeof(float));
+
             for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
                 size_t train_i = train_indexes[i + batch_i];
 
