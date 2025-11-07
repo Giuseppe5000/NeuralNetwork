@@ -111,6 +111,7 @@ static float he(size_t fan_out) {
 }
 
 /*
+Multiply 'A' to 'B', putting the result in 'res'.
 'res' needs to be a matrix of 'A_rows' rows and 'B_cols' columns.
 */
 static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *res) {
@@ -130,14 +131,21 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
 }
 
 /*
-Puts into 'res' (matrix of 'A_col' rows and 'A_rows' cols) the transpose of 'A'.
+Multiply 'A' to the transpose of 'B' directly, putting the result in res.
+'res' needs to be a matrix of 'A_rows' rows and 'B_rows' columns.
 */
-static void nn_matrix_transpose(const float *A, size_t A_rows, size_t A_cols, float *res) {
-    const size_t res_cols = A_rows;
+static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *res) {
+    if (A_cols != B_cols) {
+        fprintf(stderr, "[ERROR]: Trying to mult A * transpose(B), but A_cols != B_cols\n");
+        exit(1);
+    }
 
     for (size_t row = 0; row < A_rows; ++row) {
-        for (size_t col = 0; col < A_cols; ++col) {
-            res[col*res_cols + row] = A[row*A_cols + col];
+        for (size_t col = 0; col < B_rows; ++col) {
+            res[row * B_rows + col] = 0;
+            for (size_t i = 0; i < A_cols; ++i) {
+                res[row*B_rows + col] += A[row*A_cols + i] * B[col*B_cols + i];
+            }
         }
     }
 }
@@ -484,18 +492,10 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
         float res[res_len];
         intermediate_products_index -= res_len;
 
-        /* nn->layers[i] + nn->units_configuration[i+1] is for skipping bias weights, delta do not have to be calculated for them */
-        float layers_transpose[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
-        nn_matrix_transpose(
-            nn->layers[i],
-            nn->units_configuration[i] + 1,
-            nn->units_configuration[i+1],
-            layers_transpose
-        );
-
-        nn_matrix_mul(
+        /* delta(l) = transpose(nn->layers[l]) * delta(l+1) .* f'(z(l) */
+        nn_matrix_mul_t(
             deltas + deltas_index, 1, nn->units_configuration[i+1],
-            layers_transpose, nn->units_configuration[i+1], nn->units_configuration[i] + 1,
+            nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
             res
         );
 
