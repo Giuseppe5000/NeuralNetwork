@@ -53,6 +53,15 @@ struct NN {
     */
     nn_activation *activations;
     nn_activation_derivative *activations_derivative;
+
+    /*
+    Array for storing the intermediate activations of the feed forward (contains even input and output).
+
+    Its length has to be the sum of the elements of nn->units_configuration + the biases:
+    so, (nn->units_configuration[0] + 1) +  (nn->units_configuration[1] + 1) + .. + (nn->units_configuration[nn->units_configuration_len - 1]).
+    */
+    float *intermediate_activations;
+    size_t intermediate_activations_len;
 };
 /* ================================================================= */
 
@@ -236,6 +245,16 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
         }
     }
 
+    /* Intermidiate activations initialize */
+    nn->intermediate_activations_len = 0;
+
+    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
+        nn->intermediate_activations_len += nn->units_configuration[i] + 1; /* Number of neurons + bias */
+    }
+    nn->intermediate_activations_len--; /* Last layer doesn't have bias */
+
+    nn->intermediate_activations = nn_malloc(nn->intermediate_activations_len * sizeof(float));
+
     return nn;
 }
 
@@ -258,78 +277,68 @@ The intermediate products will be put in the 'intermediate_products' array IF it
 Its length has to be the sum of the elements of nn->units_configuration + the biases:
     so, (nn->units_configuration[0] + 1) +  (nn->units_configuration[1] + 1) + .. + (nn->units_configuration[nn->units_configuration_len - 1]).
 */
-static void nn_feed_forward(NN *nn, const float *x, float *out, float *intermediate_products) {
+static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products) {
     size_t x_cols = nn->units_configuration[0];
     const size_t x_rows = 1;
 
-    /*
-    Find the unit configuration with maximum neurons.
-    In this way we are sure that 'input' can contain
-    all the intermediate results during the forward.
-    */
-    size_t max_neurons = 0;
+    /* Copy input into intermediate_activations */
+    nn->intermediate_activations[0] = 1.0; /* Bias */
+    memcpy(nn->intermediate_activations + 1, x, x_cols * sizeof(float));
 
-    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
-        if (nn->units_configuration[i] > max_neurons) {
-            max_neurons = nn->units_configuration[i];
-        }
-    }
-
-    float *input = nn_malloc((max_neurons + 1)*sizeof(float));
-    input[0] = 1.0; /* Bias */
-    memcpy(input + 1, x, x_cols * sizeof(float));
-
-    /* Adding input as first intermidiate product */
+    /* Copy input into intermidiate product */
     size_t intermediate_products_counter = 0;
     if (intermediate_products != NULL) {
-        for (size_t i = 0; i < nn->units_configuration[0] + 1; ++i) {
-            intermediate_products[intermediate_products_counter++] = input[i];
-        }
+        intermediate_products[0] = 1.0;
+        memcpy(intermediate_products + 1, x, x_cols * sizeof(float));
+        intermediate_products_counter += x_cols + 1;
     }
 
     /* Feed forward through the nn layers */
+    float *activations_i = nn->intermediate_activations; /* Activations of units i */
+    float *activations_i_next = nn->intermediate_activations + x_cols + 1; /* Activations of units i+1 */
+
     for (size_t i = 0; i < nn->layers_len; ++i) {
         size_t res_len = nn->units_configuration[i+1];
-        float res[res_len];
 
         nn_matrix_mul(
-            input, x_rows, x_cols + 1, /* + 1 is for multiply the bias weights */
+            activations_i, x_rows, x_cols + 1, /* + 1 is for multiply the bias weights */
             nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
-            res
+            activations_i_next + 1
         );
+
+        /* Bias for next iteration */
+        if (i != nn->layers_len - 1) {
+            activations_i_next[0] = 1.0;
+        }
 
         /* Saving intermediate products */
         if (intermediate_products != NULL) {
-
-            /* If we are on an itermediate layer then we have to add the bias terms */
-            if (i != nn->layers_len - 1) {
-                intermediate_products[intermediate_products_counter++] = 1.0;
-            }
-
-            for (size_t j = 0; j < res_len; ++j) {
-                intermediate_products[intermediate_products_counter++] = res[j];
+            for (size_t j = 0; j < res_len + 1; ++j) {
+                intermediate_products[intermediate_products_counter++] = activations_i_next[j];
             }
         }
 
         /* Applying activation function */
-        for (size_t j = 0; j < res_len; ++j) {
-            res[j] = nn->activations[i](res[j]);
+        for (size_t j = 1; j < res_len + 1; ++j) {
+            activations_i_next[j] = nn->activations[i](activations_i_next[j]);
         }
 
-        /* 'res' is the new input */
-        memcpy(input + 1, res, res_len * sizeof(float));
+        activations_i = activations_i_next;
+        activations_i_next += x_cols + 1;
         x_cols = nn->units_configuration[i+1];
     }
-
-    memcpy(out, input + 1, nn->units_configuration[nn->units_configuration_len - 1] * sizeof(float));
-    free(input);
 }
 
 void nn_predict(NN *nn, const float *x, float *out) {
-    nn_feed_forward(nn, x, out, NULL);
+    nn_feed_forward(nn, x, NULL);
+
+    /* Copy the output of the last elements of intermediate activations in 'out' */
+    size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    size_t out_index = nn->intermediate_activations_len - out_len;
+    memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
 }
 
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *out, size_t out_len, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc);
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc);
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
     float error = FLT_MAX;
@@ -341,16 +350,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
 
     /* Array for storing the intermediate products in the feed forward */
-    size_t intermediate_products_len = 0;
-    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
-        intermediate_products_len += nn->units_configuration[i] + 1; /* Number of neurons + bias */
-    }
-    intermediate_products_len--; /* Last layer don't have bias */
+    size_t intermediate_products_len = nn->intermediate_activations_len;
     float *intermediate_products = nn_malloc(intermediate_products_len*sizeof(float));
-
-    /* Array for storing the output */
-    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    float *out = nn_malloc(out_len*sizeof(float));
 
     /* Array for storing deltas*/
     size_t deltas_len = 0;
@@ -362,12 +363,17 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     /* Array for accumulate gradients */
     float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
 
+    /* Getting output from intermediate activation */
+    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    const size_t out_index = nn->intermediate_activations_len - out_len;
+    const float *out = nn->intermediate_activations + out_index;
+
     while (error > opt->err_threshold) {
 
         /* Getting the current error, using the MSE */
         error = 0.0;
         for (size_t i = 0; i < train_len; ++i) {
-            nn_predict(nn, x_train + i*nn->units_configuration[0], out);
+            nn_feed_forward(nn, x_train + i*nn->units_configuration[0], NULL);
 
             for (size_t j = 0; j < out_len; ++j) {
                 error += powf(y_train[i*out_len + j] - out[j], 2);
@@ -403,7 +409,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             ================
             */
 
-            nn_feed_forward(nn, x_train + batch_i * nn->units_configuration[0], out, intermediate_products);
+            nn_feed_forward(nn, x_train + batch_i * nn->units_configuration[0], intermediate_products);
 
             /*
             ===================
@@ -415,7 +421,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
             */
 
-            backpropagation(nn, batch_i, y_train, out, out_len, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc);
+            backpropagation(nn, batch_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc);
 
             /*
             This is for be sure that the batch loop executes only 1 time.
@@ -435,12 +441,11 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
 
     free(intermediate_products);
-    free(out);
     free(deltas);
     free(gradient_acc);
 }
 
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *out, size_t out_len, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc) {
 
     /*
     We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
@@ -454,6 +459,10 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
 
 
     /* delta(L) */
+    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    size_t out_index = nn->intermediate_activations_len - out_len;
+    float *out = nn->intermediate_activations + out_index;
+
     const size_t deltas_out_index = deltas_len - out_len;
     size_t intermediate_products_index = intermediate_products_len - out_len;
     for (size_t i = 0; i < out_len; ++i) {
@@ -501,30 +510,12 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     size_t counter_index = 0;
     size_t gradient_acc_index = 0;
     deltas_index = 0;
+    float *activations_i = nn->intermediate_activations;
     for (size_t i = 0; i < nn->layers_len; ++i) {
-        float intermediate_activations_i[nn->units_configuration[i] + 1];
-
-        for (size_t j = 0; j < nn->units_configuration[i] + 1; ++j) {
-            /*
-            if counter_index == 0 then the first activation a(l) is just the input,
-            and so it does not have an activation function
-            */
-            if (counter_index == 0) {
-                intermediate_activations_i[j] = intermediate_products[counter_index+j];
-            } else {
-                if (j == 0) { /* Bias term doesn't have activation function */
-                    intermediate_activations_i[j] = intermediate_products[counter_index+j];
-                }
-                else {
-                    intermediate_activations_i[j] = nn->activations[i-1](intermediate_products[counter_index+j]);
-                }
-            }
-        }
-
         float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
 
         nn_matrix_mul(
-            intermediate_activations_i, nn->units_configuration[i] + 1, 1,
+            activations_i, nn->units_configuration[i] + 1, 1,
             deltas + deltas_index, 1, nn->units_configuration[i+1],
             res
         );
@@ -535,6 +526,7 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
         }
         gradient_acc_index += (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
 
+        activations_i += nn->units_configuration[i] + 1;
         counter_index += nn->units_configuration[i] + 1;
         deltas_index += nn->units_configuration[i+1];
     }
