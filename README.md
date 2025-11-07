@@ -28,7 +28,8 @@ However the code **should** work without any problems on MacOS with Clang and on
 - [x] Optimize the use of intermediate_products in feed\_forward (by removing the res var). But in this way should store the activations and not the products. (Btw intermediate\_products can be stored on the NN struct).\ Maybe i can store on NN both intermediate\_products and intermediate\_activations.
 - [x] Remove the use of VLAs from backprop, by using an allocated big enough space with malloc at the start of fit.
 - [x] Fix mini batch implementation by taking random n elements each time (at the moment takes always the first n elements, so it is wrong).
-- [ ] Use one single malloc in nn_init for alloc the arrays of NN, improving cache locality.
+- [ ] Add Softmax activation function (only final layer).
+- [ ] Use one single malloc in nn_init for alloc the arrays of NN, improving cache locality. (Check if the cache locality / simplicity tradeoff is acceptable)
 - [ ] Simplify the code where is possible.
 - [ ] Check const correctness.
 - [ ] Improve comments and documentation.
