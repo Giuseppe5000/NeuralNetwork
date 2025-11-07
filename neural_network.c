@@ -120,9 +120,10 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
         exit(1);
     }
 
+    memset(res, 0, A_rows*B_cols*sizeof(float));
+
     for (size_t row = 0; row < A_rows; ++row) {
         for (size_t col = 0; col < B_cols; ++col) {
-            res[row*B_cols + col] = 0;
             for (size_t i = 0; i < A_cols; ++i) {
                 res[row*B_cols + col] += A[row*A_cols + i] * B[i*B_cols + col];
             }
@@ -140,9 +141,10 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
         exit(1);
     }
 
+    memset(res, 0, A_rows*B_rows*sizeof(float));
+
     for (size_t row = 0; row < A_rows; ++row) {
         for (size_t col = 0; col < B_rows; ++col) {
-            res[row * B_rows + col] = 0;
             for (size_t i = 0; i < A_cols; ++i) {
                 res[row*B_rows + col] += A[row*A_cols + i] * B[col*B_cols + i];
             }
