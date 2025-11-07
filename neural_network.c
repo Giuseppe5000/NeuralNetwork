@@ -429,12 +429,14 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         ==================================
         */
 
-        /* Shuffle train_indexes using Fisher–Yates shuffle algorithm */
-        for (size_t i = train_len - 1; i > 0; --i) {
-            size_t j = rand() % (i+1);
-            size_t tmp = train_indexes[i];
-            train_indexes[i] = train_indexes[j];
-            train_indexes[j] = tmp;
+        /* Shuffle train_indexes using Fisher–Yates shuffle algorithm (only if isn't used Batch GD) */
+        if (opt->mini_batch_size != train_len) {
+            for (size_t i = train_len - 1; i > 0; --i) {
+                size_t j = rand() % (i+1);
+                size_t tmp = train_indexes[i];
+                train_indexes[i] = train_indexes[j];
+                train_indexes[j] = tmp;
+            }
         }
 
         for (size_t i = 0; i < train_len; i+=opt->mini_batch_size) {
