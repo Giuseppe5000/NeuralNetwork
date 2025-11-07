@@ -441,7 +441,13 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             /* Reset gradient accumulator */
             memset(gradient_acc, 0, nn->weights_len * sizeof(float));
 
-            for (size_t batch_i = 0; batch_i < opt->mini_batch_size; ++batch_i) {
+            /*
+            (In the case of Mini-batch GD).
+            If train_len is not divisible by opt->mini_batch_size, the last batch length is < opt->mini_batch_size.
+            */
+            const size_t current_batch_size = (i + opt->mini_batch_size - 1 >= train_len) ? (train_len - i) : opt->mini_batch_size;
+
+            for (size_t batch_i = 0; batch_i < current_batch_size; ++batch_i) {
                 size_t train_i = train_indexes[i + batch_i];
 
                 nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0], intermediate_products);
