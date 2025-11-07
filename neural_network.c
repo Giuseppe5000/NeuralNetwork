@@ -353,7 +353,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
     memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
 }
 
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc);
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad);
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
     float error = FLT_MAX;
@@ -373,10 +373,23 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     for (size_t i = 1; i < nn->units_configuration_len; ++i) {
         deltas_len += nn->units_configuration[i];
     }
-    float *deltas = nn_malloc(deltas_len*sizeof(float));
+    float *deltas = nn_malloc(deltas_len * sizeof(float));
 
     /* Array for accumulate gradients */
     float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
+
+    /*
+    Scratchpad array for backprop.
+    Length is the number of weights of the largest layer.
+    */
+    size_t largest_layer_size = 0;
+    for (size_t i = 0; i < nn->layers_len - 1; ++i) {
+        const size_t current_layer_len = (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
+        if (current_layer_len > largest_layer_size) {
+            largest_layer_size = current_layer_len;
+        }
+    }
+    float *scratchpad = nn_malloc(largest_layer_size * sizeof(float));
 
     /* Getting output from intermediate activation */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
@@ -436,7 +449,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
             */
 
-            backpropagation(nn, batch_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc);
+            backpropagation(nn, batch_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc, scratchpad);
 
             /*
             This is for be sure that the batch loop executes only 1 time.
@@ -458,9 +471,10 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     free(intermediate_products);
     free(deltas);
     free(gradient_acc);
+    free(scratchpad);
 }
 
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad) {
 
     /*
     We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
@@ -489,22 +503,21 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     size_t deltas_index = deltas_out_index;
     for (size_t i = nn->layers_len - 1; i > 0; --i) {
         const size_t res_len = nn->units_configuration[i] + 1;
-        float res[res_len];
         intermediate_products_index -= res_len;
 
         /* delta(l) = transpose(nn->layers[l]) * delta(l+1) .* f'(z(l) */
         nn_matrix_mul_t(
             deltas + deltas_index, 1, nn->units_configuration[i+1],
             nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
-            res
+            scratchpad
         );
 
         for (size_t j = 1; j < res_len; ++j) {
-            res[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
+            scratchpad[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
         }
 
         deltas_index -= res_len - 1;
-        memcpy(deltas + deltas_index, res + 1, (res_len - 1)*sizeof(float));
+        memcpy(deltas + deltas_index, scratchpad + 1, (res_len - 1)*sizeof(float));
     }
 
     /*
@@ -518,17 +531,15 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     deltas_index = 0;
     float *activations_i = nn->intermediate_activations;
     for (size_t i = 0; i < nn->layers_len; ++i) {
-        float res[(nn->units_configuration[i] + 1) * nn->units_configuration[i+1]];
-
         nn_matrix_mul(
             activations_i, nn->units_configuration[i] + 1, 1,
             deltas + deltas_index, 1, nn->units_configuration[i+1],
-            res
+            scratchpad
         );
 
         /* Gradient accumulation */
         for (size_t j = 0; j < (nn->units_configuration[i] + 1) * nn->units_configuration[i+1]; ++j) {
-            gradient_acc[gradient_acc_index + j] += res[j];
+            gradient_acc[gradient_acc_index + j] += scratchpad[j];
         }
         gradient_acc_index += (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
 
