@@ -31,5 +31,5 @@ However the code **should** work without any problems on MacOS with Clang and on
 - [ ] Add Softmax activation function (only final layer).
 - [ ] Use one single malloc in nn_init for alloc the arrays of NN, improving cache locality. (Check if the cache locality / simplicity tradeoff is acceptable)
 - [ ] Simplify the code where is possible.
-- [ ] Check const correctness.
+- [x] Check const correctness.
 - [ ] Improve comments and documentation.

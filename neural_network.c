@@ -210,7 +210,7 @@ static void backpropagation(
 
 /* ================================================================= */
 
-NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init) {
+NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, const enum Activation *units_activation, enum Weight_initialization w_init) {
     NN *nn = nn_malloc(sizeof(NN));
 
     /* Copy units_configuration into the struct */
@@ -313,8 +313,8 @@ void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x, NULL);
 
     /* Copy the output of the last elements of intermediate activations in 'out' */
-    size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    size_t out_index = nn->intermediate_activations_len - out_len;
+    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    const size_t out_index = nn->intermediate_activations_len - out_len;
     memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
 }
 
@@ -329,8 +329,8 @@ Its length has to be the sum of the elements of nn->units_configuration + the bi
     so, (nn->units_configuration[0] + 1) +  (nn->units_configuration[1] + 1) + .. + (nn->units_configuration[nn->units_configuration_len - 1]).
 */
 static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products) {
-    size_t x_cols = nn->units_configuration[0];
     const size_t x_rows = 1;
+    size_t x_cols = nn->units_configuration[0];
 
     /* Copy input into intermediate_activations */
     nn->intermediate_activations[0] = 1.0; /* Bias */
@@ -349,7 +349,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
     float *activations_i_next = nn->intermediate_activations + x_cols + 1; /* Activations of units i+1 */
 
     for (size_t i = 0; i < nn->layers_len; ++i) {
-        size_t res_len = nn->units_configuration[i+1];
+        const size_t res_len = nn->units_configuration[i+1];
 
         const unsigned int is_not_last_layer = (i != nn->layers_len - 1) ? 1 : 0;
 
@@ -396,8 +396,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     size_t epoch = 0;
 
     /* Array for storing the intermediate products in the feed forward */
-    size_t intermediate_products_len = nn->intermediate_activations_len;
-    float *intermediate_products = nn_malloc(intermediate_products_len*sizeof(float));
+    const size_t intermediate_products_len = nn->intermediate_activations_len;
+    float *intermediate_products = nn_malloc(intermediate_products_len * sizeof(float));
 
     /* Array for storing deltas*/
     size_t deltas_len = 0;
@@ -461,8 +461,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         /* Shuffle train_indexes using Fisher–Yates shuffle algorithm (only if isn't used Batch GD) */
         if (opt->mini_batch_size != train_len) {
             for (size_t i = train_len - 1; i > 0; --i) {
-                size_t j = rand() % (i+1);
-                size_t tmp = train_indexes[i];
+                const size_t j = rand() % (i+1);
+                const size_t tmp = train_indexes[i];
                 train_indexes[i] = train_indexes[j];
                 train_indexes[j] = tmp;
             }
@@ -479,7 +479,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             const size_t current_batch_size = (i + opt->mini_batch_size - 1 >= train_len) ? (train_len - i) : opt->mini_batch_size;
 
             for (size_t batch_i = 0; batch_i < current_batch_size; ++batch_i) {
-                size_t train_i = train_indexes[i + batch_i];
+                const size_t train_i = train_indexes[i + batch_i];
 
                 nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0], intermediate_products);
                 backpropagation(nn, train_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc, scratchpad);
@@ -517,7 +517,7 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
 
     /* delta(L) */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    size_t out_index = nn->intermediate_activations_len - out_len;
+    const size_t out_index = nn->intermediate_activations_len - out_len;
     float *out = nn->intermediate_activations + out_index;
 
     const size_t deltas_out_index = deltas_len - out_len;
@@ -545,7 +545,7 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
         }
 
         deltas_index -= res_len - 1;
-        memcpy(deltas + deltas_index, scratchpad + 1, (res_len - 1)*sizeof(float));
+        memcpy(deltas + deltas_index, scratchpad + 1, (res_len - 1) * sizeof(float));
     }
 
     /*

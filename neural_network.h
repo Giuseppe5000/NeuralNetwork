@@ -78,7 +78,7 @@ typedef struct {
 *          w(x4<->x5),
 *      }
 */
-NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init);
+NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, const enum Activation *units_activation, enum Weight_initialization w_init);
 
 /*
 *  Freeing allocated memory.
