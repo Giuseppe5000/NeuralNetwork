@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -std=c99 -Werror=vla
+CFLAGS = -Wall -Wextra -pedantic -std=c99 -Werror=vla 
+# For more performance add: -Ofast -march=native -ffast-math
 LIBS= -lm
 SRC_DIR = examples
 BUILD_DIR = build_examples
