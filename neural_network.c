@@ -432,7 +432,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
         nn->activations[i](
             activations_i_next + is_not_last_layer,
             activations_i_next + is_not_last_layer,
-            res_len + is_not_last_layer
+            res_len
         );
 
         activations_i = activations_i_next;
@@ -470,8 +470,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     Length is the number of weights of the largest layer.
     */
     size_t largest_layer_size = 0;
-    for (size_t i = 0; i < nn->layers_len; ++i) {
-        const size_t current_layer_len = (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
+    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
+        const size_t current_layer_len = (nn->units_configuration[i] + 1) * (nn->units_configuration[i] + 1);
         if (current_layer_len > largest_layer_size) {
             largest_layer_size = current_layer_len;
         }
