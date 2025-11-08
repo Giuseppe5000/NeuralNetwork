@@ -9,7 +9,7 @@ enum Activation {
     NN_SIGMOID,
     NN_RELU,
     NN_TANH,
-    NN_SOFTMAX,
+    NN_SOFTMAX, /* usable only in the output layer! */
 };
 
 enum Weight_initialization {
