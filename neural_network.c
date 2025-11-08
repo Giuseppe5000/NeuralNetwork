@@ -4,7 +4,6 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
-#include <assert.h>
 #include <float.h>
 
 #ifndef M_PI
@@ -174,6 +173,8 @@ static float relu(float x) {
     return x > 0.0 ? x : 0.0;
 }
 
+/* tanh already defined in math.h */
+
 static float sigmoid_derivative(float x) {
     return sigmoid(x) * (1.0 - sigmoid(x));
 }
@@ -204,10 +205,10 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
 
     for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         /*
-        (units_configuration[i] * units_configuration[i+1]) = N x M matrix weights
-        units_configuration[i+1] = weights for bias term
+        *  (units_configuration[i] * units_configuration[i+1]) = N x M matrix weights
+        *  units_configuration[i+1] = weights for bias term
         */
-        nn->weights_len += units_configuration[i] * units_configuration[i+1] + units_configuration[i+1];
+        nn->weights_len += (units_configuration[i] * units_configuration[i+1]) + units_configuration[i+1];
     }
     nn->weights = nn_malloc(nn->weights_len * sizeof(float));
 
@@ -216,12 +217,12 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
     size_t counter = 0;
     for (size_t i = 0; i < nn->layers_len; ++i) {
         nn->layers[i] = nn->weights + counter;
-        counter += units_configuration[i] * units_configuration[i+1] + units_configuration[i+1];
+        counter += (units_configuration[i] * units_configuration[i+1]) + units_configuration[i+1];
     }
 
     srand(time(NULL));
     for(size_t i = 0; i < nn->layers_len; ++i) {
-        const size_t layer_size = units_configuration[i] * units_configuration[i+1] + units_configuration[i+1];
+        const size_t layer_size = (units_configuration[i] * units_configuration[i+1]) + units_configuration[i+1];
 
         for (size_t j = 0; j < layer_size; ++j) {
             float *weight = nn->layers[i] + j;
@@ -237,7 +238,8 @@ NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Ac
                     *weight = he(units_configuration[i+1]);
                     break;
                 default:
-                    assert(0 && "Unreachable");
+                    fprintf(stderr, "[ERROR]: Invalid weights init method.\n");
+                    exit(1);
             }
         }
     }
