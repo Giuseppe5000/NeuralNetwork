@@ -109,8 +109,8 @@ static float glorot(size_t fan_in, size_t fan_out) {
 *  He weight initialization, using Box-Muller transform.
 *  (https://en.wikipedia.org/wiki/Weight_initialization#He_initialization).
 */
-static float he(size_t fan_out) {
-    const float stddev = sqrtf(2.0 / fan_out);
+static float he(size_t fan_in) {
+    const float stddev = sqrtf(2.0 / fan_in);
     const float u1 = (float)rand() / (float)RAND_MAX;
     const float u2 = (float)rand() / (float)RAND_MAX;
     const float z0 = sqrtf(-2.0 * logf(u1)) * cosf(2.0 * M_PI * u2);
@@ -250,10 +250,10 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
                     *weight = randf(-0.01,0.01);
                     break;
                 case NN_GLOROT:
-                    *weight = glorot(units_configuration[i+1], units_configuration[i] + 1);
+                    *weight = glorot(units_configuration[i] + 1, units_configuration[i+1]);
                     break;
                 case NN_HE:
-                    *weight = he(units_configuration[i+1]);
+                    *weight = he(units_configuration[i] + 1);
                     break;
                 default:
                     fprintf(stderr, "[ERROR]: Invalid weights init method.\n");
