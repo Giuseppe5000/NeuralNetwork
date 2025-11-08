@@ -192,6 +192,24 @@ static float tanh_derivative(float x) {
 
 
 
+/* ===================== Forward declarations ====================== */
+
+static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products);
+
+static void backpropagation(
+    const NN *nn,
+    size_t batch_i,
+    const float *y_train,
+    const float *intermediate_products,
+    size_t intermediate_products_len,
+    float *deltas,
+    size_t deltas_len,
+    float *gradient_acc,
+    float *scratchpad
+);
+
+/* ================================================================= */
+
 NN *nn_init(size_t *units_configuration, size_t units_configuration_len, enum Activation *units_activation, enum Weight_initialization w_init) {
     NN *nn = nn_malloc(sizeof(NN));
 
@@ -291,6 +309,15 @@ void nn_free(NN *nn) {
     free(nn);
 }
 
+void nn_predict(NN *nn, const float *x, float *out) {
+    nn_feed_forward(nn, x, NULL);
+
+    /* Copy the output of the last elements of intermediate activations in 'out' */
+    size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    size_t out_index = nn->intermediate_activations_len - out_len;
+    memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
+}
+
 /*
 Feed forward the NN.
 
@@ -358,17 +385,6 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
         x_cols = nn->units_configuration[i+1];
     }
 }
-
-void nn_predict(NN *nn, const float *x, float *out) {
-    nn_feed_forward(nn, x, NULL);
-
-    /* Copy the output of the last elements of intermediate activations in 'out' */
-    size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    size_t out_index = nn->intermediate_activations_len - out_len;
-    memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
-}
-
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad);
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
     if (opt->mini_batch_size < 1 || opt->mini_batch_size > train_len) {
