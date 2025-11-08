@@ -17,48 +17,54 @@ typedef float (*nn_activation_derivative)(float);
 
 struct NN {
     /*
-    NN architecture.
+    *  NN architecture configuration.
     */
     size_t *units_configuration;
     size_t units_configuration_len;
 
     /*
-    'layers' is a different view of the 'weights'.
-    In fact it is an array of pointer, and each pointer points to the start of a matrix in 'weights'.
-
-    For example, layers[1] = pointer to the first element of second layer.
-
-    This is convinient for moving between the nn layers.
-
-    Obviously 'layer_len' = 'units_configuration_len' - 1.
-    */
-    float **layers;
-    size_t layers_len;
-
-    /*
-    Simply all the weights in the nn.
-    'weights_len' is equal to the sum of each subsequent pair of 'units_configuration'.
-
-    Example:
-        size_t units_configuration[] = {3, 2, 1};
-
-        Then 'weights_len' = 3*2 + 2*1 = 6 + 2 = 8.
+    *  All the weights of the network, stored as a linear array of floats.
+    *
+    *  'weights_len' is equal to the sum of each subsequent pair of 'units_configuration'.
+    *  Example:
+    *      size_t units_configuration[] = {3, 2, 1};
+    *
+    *      Then 'weights_len' = 3*2 + 2*1 = 6 + 2 = 8.
     */
     float *weights;
     size_t weights_len;
 
     /*
-    Array of activation function (and its derivative).
-    length = 'units_configuration_len' - 1.
+    *  'layers' is a view of the 'weights'.
+    *  It is an array of pointer, each pointer points to the start of a matrix in 'weights'.
+    *
+    *  For example:
+    *    layers[0] = pointer to the first element of first layer.
+    *    layers[1] = pointer to the first element of second layer.
+    *
+    *  This is convinient for moving between the nn layers.
+    *
+    *  'layers_len' = 'units_configuration_len' - 1.
+    */
+    float **layers;
+    size_t layers_len;
+
+    /*
+    *  Array of activation functions (and its derivatives), one for each layers.
+    *  length = 'layers_len' = 'units_configuration_len' - 1.
     */
     nn_activation *activations;
     nn_activation_derivative *activations_derivative;
 
     /*
-    Array for storing the intermediate activations of the feed forward (contains even input and output).
-
-    Its length has to be the sum of the elements of nn->units_configuration + the biases:
-    so, (nn->units_configuration[0] + 1) +  (nn->units_configuration[1] + 1) + .. + (nn->units_configuration[nn->units_configuration_len - 1]).
+    *  Array for storing the intermediate activations of the feed forward (contains even input and output).
+    *  Storing this activation is useful for the training (in backpropagation).
+    *
+    *  Its length has to be the sum of the elements of nn->units_configuration + the biases:
+    *  so, (nn->units_configuration[0] + 1) +
+    *      (nn->units_configuration[1] + 1) +
+    *                  .... +
+    *      (nn->units_configuration[nn->units_configuration_len - 1]).
     */
     float *intermediate_activations;
     size_t intermediate_activations_len;
