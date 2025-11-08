@@ -183,6 +183,34 @@ static void tanh_vec(float *x, float *out, size_t len) {
     }
 }
 
+/*
+*  Safe implementation.
+*  (https://en.wikipedia.org/wiki/Softmax_function#Numerical_algorithms)
+*  (https://en.wikipedia.org/wiki/Softmax_function#Example)
+*/
+static void softmax(float *x, float *out, size_t len) {
+
+    /* Get the max of 'x' */
+    float max = -INFINITY;
+    for (size_t i = 0; i < len; ++i) {
+        if (x[i] > max) max = x[i];
+    }
+
+    /*
+    *  Get the sum of all 'exp(beta*(xi - max))'.
+    *  beta = 1.0.
+    */
+    float sum = 0.0;
+    for (size_t i = 0; i < len; ++i) {
+        sum += expf((x[i] - max));
+    }
+
+    /* Compute the softmax for each xi*/
+    for (size_t i = 0; i < len; ++i) {
+        out[i] = expf((x[i] - max)) / sum;
+    }
+}
+
 static float sigmoid(float x) {
     return 1.0 / (1.0 + expf(-x));
 }
@@ -198,6 +226,12 @@ static float relu_derivative(float x) {
 
 static float tanh_derivative(float x) {
     return 1.0 - powf(tanhf(x), 2);
+}
+
+static float softmax_derivative(float x) {
+    (void) x;
+    /* Just don't do anything, this function applies only to the last layer */
+    return 1.0;
 }
 
 /* ================================================================= */
@@ -291,6 +325,14 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
             case NN_TANH:
                 (nn->activations)[i] = tanh_vec;
                 (nn->activations_derivative)[i] = tanh_derivative;
+                break;
+            case NN_SOFTMAX:
+                if (i != nn->layers_len - 1) {
+                    fprintf(stderr, "[ERROR]: NN_SOFTMAX can be used only on the output layer.\n");
+                    exit(1);
+                }
+                (nn->activations)[i] = softmax;
+                (nn->activations_derivative)[i] = softmax_derivative;
                 break;
             default:
                 fprintf(stderr, "[ERROR]: Check if the 'units_activation' length == units_configuration_len - 1.\n");

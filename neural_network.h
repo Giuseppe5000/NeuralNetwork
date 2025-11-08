@@ -9,6 +9,7 @@ enum Activation {
     NN_SIGMOID,
     NN_RELU,
     NN_TANH,
+    NN_SOFTMAX,
 };
 
 enum Weight_initialization {
