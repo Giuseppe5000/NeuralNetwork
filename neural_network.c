@@ -25,11 +25,11 @@ struct NN {
     /*
     *  All the weights of the network, stored as a linear array of floats.
     *
-    *  'weights_len' is equal to the sum of each subsequent pair of 'units_configuration'.
+    *  'weights_len' is equal to the sum of each subsequent pair of 'units_configuration' (adding the biases obv).
     *  Example:
     *      size_t units_configuration[] = {3, 2, 1};
     *
-    *      Then 'weights_len' = 3*2 + 2*1 = 6 + 2 = 8.
+    *      Then 'weights_len' = (3+1) * 2 + (2+1) * 1  = 8 + 3 = 11.
     */
     float *weights;
     size_t weights_len;
@@ -414,7 +414,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     Length is the number of weights of the largest layer.
     */
     size_t largest_layer_size = 0;
-    for (size_t i = 0; i < nn->layers_len - 1; ++i) {
+    for (size_t i = 0; i < nn->layers_len; ++i) {
         const size_t current_layer_len = (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
         if (current_layer_len > largest_layer_size) {
             largest_layer_size = current_layer_len;
@@ -487,7 +487,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
             /* Update weights using the gradients */
             for (size_t j = 0; j < nn->weights_len; ++j) {
-                nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / opt->mini_batch_size);
+                nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / current_batch_size);
             }
         }
         epoch++;
