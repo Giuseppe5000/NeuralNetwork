@@ -1,7 +1,7 @@
 #ifndef NEURAL_NETWORK
 #define NEURAL_NETWORK
 
-#include <stddef.h>
+#include <stdio.h>
 
 typedef struct NN NN; /* Opaque type */
 
@@ -23,20 +23,23 @@ typedef struct {
     size_t epoch_num; /* Number of training epochs */
 
     /*
-     *  After how much epochs the error will be logged.
-     *  For negative numbers no logging will occur.
+     *  FILE pointer where the epochs and errors will be logged.
+     *  If == 'NULL' no log occurs.
+     *
+     * The output file then can be plotted on gnuplot (and similar)
+     * (see the examples).
      */
-    int err_epoch_logging;
+    FILE* log_fp;
 
     /*
-     *  How many training sample use at once for gradients update.
+     *  How many training samples use at once for gradients update.
      *
      *  Values in [1..train_len].
      *  When '1'                     => Stochastic Gradient Descent.
      *  When '> 1' and '< train_len' => Mini-batch Gradient Descent.
      *  When '== train_len'          => Batch Gradient Descent.
      */
-    size_t mini_batch_size;
+    size_t batch_size;
 } NN_train_opt;
 
 /*

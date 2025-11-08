@@ -443,7 +443,7 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
 }
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
-    if (opt->mini_batch_size < 1 || opt->mini_batch_size > train_len) {
+    if (opt->batch_size < 1 || opt->batch_size > train_len) {
         fprintf(stderr, "[ERROR]: mini_batch_size has to be in interval [1..train_len].");
         exit(1);
     }
@@ -486,10 +486,15 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     const size_t out_index = nn->intermediate_activations_len - out_len;
     const float *out = nn->intermediate_activations + out_index;
 
+    /* If logging is enabled, print some information on the top of the file */
+    if (opt->log_fp != NULL) {
+        fprintf(opt->log_fp, "# COL INFOS: x:(epoch) y:(loss)\n");
+    }
+
     for (size_t epoch = 0; epoch < opt->epoch_num; ++epoch) {
 
         /* Error logging */
-        if (opt->err_epoch_logging >= 0) {
+        if (opt->log_fp != NULL) {
 
             /* Getting the current error, using the MSE */
             float error = 0.0;
@@ -502,9 +507,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
             error *= 1.0/(2.0*out_len*train_len);
 
-            if (epoch % opt->err_epoch_logging == 0) {
-                printf("Error = %f\n", error);
-            }
+            fprintf(opt->log_fp, "%zu %f\n", epoch, error);
         }
 
         /*
@@ -514,7 +517,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         */
 
         /* Shuffle train_indexes using Fisher–Yates shuffle algorithm (only if isn't used Batch GD) */
-        if (opt->mini_batch_size != train_len) {
+        if (opt->batch_size != train_len) {
             for (size_t i = train_len - 1; i > 0; --i) {
                 const size_t j = rand() % (i+1);
                 const size_t tmp = train_indexes[i];
@@ -523,7 +526,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
 
-        for (size_t i = 0; i < train_len; i+=opt->mini_batch_size) {
+        for (size_t i = 0; i < train_len; i+=opt->batch_size) {
             /* Reset gradient accumulator */
             memset(gradient_acc, 0, nn->weights_len * sizeof(float));
 
@@ -531,7 +534,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             (In the case of Mini-batch GD).
             If train_len is not divisible by opt->mini_batch_size, the last batch length is < opt->mini_batch_size.
             */
-            const size_t current_batch_size = (i + opt->mini_batch_size - 1 >= train_len) ? (train_len - i) : opt->mini_batch_size;
+            const size_t current_batch_size = (i + opt->batch_size - 1 >= train_len) ? (train_len - i) : opt->batch_size;
 
             for (size_t batch_i = 0; batch_i < current_batch_size; ++batch_i) {
                 const size_t train_i = train_indexes[i + batch_i];
@@ -546,18 +549,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
     }
-
-    /* Logging error at the end */
-    float error = 0.0;
-    for (size_t i = 0; i < train_len; ++i) {
-        nn_feed_forward(nn, x_train + i*nn->units_configuration[0], NULL);
-
-        for (size_t j = 0; j < out_len; ++j) {
-            error += powf(y_train[i*out_len + j] - out[j], 2);
-        }
-    }
-    error *= 1.0/(2.0*out_len*train_len);
-    printf("Error = %f\n", error);
 
     free(intermediate_products);
     free(deltas);
