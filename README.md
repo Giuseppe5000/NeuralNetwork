@@ -3,7 +3,7 @@
 ## Overview
 Feedforward neural network implementation in plain and simple C99.
 
-Model fitting uses **Backpropagation** for gradients computation and can use **Gradient Descent**, **Mini-batch GD** and **Stochastic GD** depending on the fit options (see ```mini_batch_size``` attribute of ```NN_train_opt``` in ```neural_network.h```).\
+Model fitting uses **Backpropagation** for gradients computation and can use **Gradient Descent**, **Mini-batch GD** and **Stochastic GD** depending on the fit options (see ```batch_size``` attribute of ```NN_train_opt``` in ```neural_network.h```).\
 The error is calculated using the Mean Squared Error.
 
 The current supported activation functions are **Sigmoid**, **RELU**, **Tanh** and **Softmax**.\
