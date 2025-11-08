@@ -29,7 +29,7 @@ However the code **should** work without any problems on MacOS with Clang and on
 - [x] Remove the use of VLAs from backprop, by using an allocated big enough space with malloc at the start of fit.
 - [x] Fix mini batch implementation by taking random n elements each time (at the moment takes always the first n elements, so it is wrong).
 - [x] Add Softmax activation function (only final layer).
-- [ ] (Maybe) it is possible to eliminate intermediate_products and use the intermediate activations to compute the derivatives of products, this is possible because the derivatives (for now) are defined in terms of the primitive function. Before doing this it is better to implement softmax.
-- [ ] Simplify the code where is possible.
+- [x] It is possible to eliminate intermediate_products and use the intermediate activations to compute the derivatives of products, this is possible because the derivatives (for now) are defined in terms of the primitive function. Before doing this it is better to implement softmax.
 - [x] Check const correctness.
+- [ ] Simplify the code where is possible.
 - [ ] Improve comments and documentation.

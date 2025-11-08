@@ -173,13 +173,13 @@ static void sigmoid_vec(float *x, float *out, size_t len) {
 
 static void relu_vec(float *x, float *out, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        out[i] =  x[i] > 0.0 ? x[i] : 0.0;
+        out[i] = (x[i] > 0.0) ? x[i] : 0.0;
     }
 }
 
 static void tanh_vec(float *x, float *out, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        out[i] =  tanhf(x[i]);
+        out[i] = tanhf(x[i]);
     }
 }
 
@@ -211,21 +211,20 @@ static void softmax(float *x, float *out, size_t len) {
     }
 }
 
-static float sigmoid(float x) {
-    return 1.0 / (1.0 + expf(-x));
+/* Computes the derivative taking as input the sigmoid of x */
+static float sigmoid_derivative(float sigmoid_x) {
+    return sigmoid_x * (1.0 - sigmoid_x);
 }
 
-static float sigmoid_derivative(float x) {
-    return sigmoid(x) * (1.0 - sigmoid(x));
-}
-
-static float relu_derivative(float x) {
+/* Computes the derivative taking as input the relu of x */
+static float relu_derivative(float x_relu) {
     /* Not derivable when x = 0, so for practical reasons the value in x = 0 is 0 */
-    return x > 0.0 ? 1.0 : 0.0;
+    return (x_relu > 0.0) ? 1.0 : 0.0;
 }
 
-static float tanh_derivative(float x) {
-    return 1.0 - powf(tanhf(x), 2);
+/* Computes the derivative taking as input the tanh of x */
+static float tanh_derivative(float x_tanh) {
+    return 1.0 - powf(x_tanh, 2);
 }
 
 static float softmax_derivative(float x) {
@@ -240,14 +239,12 @@ static float softmax_derivative(float x) {
 
 /* ===================== Forward declarations ====================== */
 
-static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products);
+static void nn_feed_forward(NN *nn, const float *x);
 
 static void backpropagation(
     const NN *nn,
     size_t batch_i,
     const float *y_train,
-    const float *intermediate_products,
-    size_t intermediate_products_len,
     float *deltas,
     size_t deltas_len,
     float *gradient_acc,
@@ -364,7 +361,7 @@ void nn_free(NN *nn) {
 }
 
 void nn_predict(NN *nn, const float *x, float *out) {
-    nn_feed_forward(nn, x, NULL);
+    nn_feed_forward(nn, x);
 
     /* Copy the output of the last elements of intermediate activations in 'out' */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
@@ -376,13 +373,12 @@ void nn_predict(NN *nn, const float *x, float *out) {
 Feed forward the NN.
 
 'x' is an array of length 'nn->units_configuration[0]'.
-The prediction result will be put in the 'res' array of length 'units_configuration[nn->units_configuration_len - 1]'.
 
-The intermediate products will be put in the 'intermediate_products' array IF it is not NULL.
-Its length has to be the sum of the elements of nn->units_configuration + the biases:
-    so, (nn->units_configuration[0] + 1) +  (nn->units_configuration[1] + 1) + .. + (nn->units_configuration[nn->units_configuration_len - 1]).
+Each output of the feed forward is computed using 'nn->intermediate_activations',
+it has inside even the input.
+So the "prediction" of the network is stored at the end of this array.
 */
-static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products) {
+static void nn_feed_forward(NN *nn, const float *x) {
     const size_t x_rows = 1;
     size_t x_cols = nn->units_configuration[0];
 
@@ -390,21 +386,12 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
     nn->intermediate_activations[0] = 1.0; /* Bias */
     memcpy(nn->intermediate_activations + 1, x, x_cols * sizeof(float));
 
-    /* Copy input into intermidiate product */
-    float *intermediate_i = NULL;
-    if (intermediate_products != NULL) {
-        intermediate_products[0] = 1.0;
-        memcpy(intermediate_products + 1, x, x_cols * sizeof(float));
-        intermediate_i = intermediate_products + x_cols + 1;
-    }
-
     /* Feed forward through the nn layers */
     float *activations_i = nn->intermediate_activations; /* Activations of units i */
     float *activations_i_next = nn->intermediate_activations + x_cols + 1; /* Activations of units i+1 */
 
     for (size_t i = 0; i < nn->layers_len; ++i) {
         const size_t res_len = nn->units_configuration[i+1];
-
         const unsigned int is_not_last_layer = (i != nn->layers_len - 1) ? 1 : 0;
 
         nn_matrix_mul(
@@ -418,16 +405,6 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
             activations_i_next[0] = 1.0;
         }
 
-        /* Saving intermediate products */
-        if (intermediate_products != NULL) {
-            if (is_not_last_layer) {
-                memcpy(intermediate_i, activations_i_next, (res_len+1)*sizeof(float));
-            }
-            else {
-                memcpy(intermediate_i, activations_i_next, (res_len)*sizeof(float));
-            }
-        }
-
         /* Applying activation function */
         nn->activations[i](
             activations_i_next + is_not_last_layer,
@@ -437,7 +414,6 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
 
         activations_i = activations_i_next;
         activations_i_next += res_len + is_not_last_layer;
-        if (intermediate_products != NULL) intermediate_i += res_len + is_not_last_layer;
         x_cols = nn->units_configuration[i+1];
     }
 }
@@ -447,10 +423,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         fprintf(stderr, "[ERROR]: mini_batch_size has to be in interval [1..train_len].");
         exit(1);
     }
-
-    /* Array for storing the intermediate products in the feed forward */
-    const size_t intermediate_products_len = nn->intermediate_activations_len;
-    float *intermediate_products = nn_malloc(intermediate_products_len * sizeof(float));
 
     /* Array for storing deltas*/
     size_t deltas_len = 0;
@@ -489,6 +461,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     /* If logging is enabled, print some information on the top of the file */
     if (opt->log_fp != NULL) {
         fprintf(opt->log_fp, "# COL INFOS: x:(epoch) y:(loss)\n");
+        fflush(opt->log_fp);
     }
 
     for (size_t epoch = 0; epoch < opt->epoch_num; ++epoch) {
@@ -499,7 +472,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             /* Getting the current error, using the MSE */
             float error = 0.0;
             for (size_t i = 0; i < train_len; ++i) {
-                nn_feed_forward(nn, x_train + i*nn->units_configuration[0], NULL);
+                nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
 
                 for (size_t j = 0; j < out_len; ++j) {
                     error += powf(y_train[i*out_len + j] - out[j], 2);
@@ -508,6 +481,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             error *= 1.0/(2.0*out_len*train_len);
 
             fprintf(opt->log_fp, "%zu %f\n", epoch, error);
+            fflush(opt->log_fp); /* TODO: Maybe it's not a good idea... */
         }
 
         /*
@@ -539,8 +513,8 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             for (size_t batch_i = 0; batch_i < current_batch_size; ++batch_i) {
                 const size_t train_i = train_indexes[i + batch_i];
 
-                nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0], intermediate_products);
-                backpropagation(nn, train_i, y_train, intermediate_products, intermediate_products_len, deltas, deltas_len, gradient_acc, scratchpad);
+                nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0]);
+                backpropagation(nn, train_i, y_train, deltas, deltas_len, gradient_acc, scratchpad);
             }
 
             /* Update weights using the gradients */
@@ -550,7 +524,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         }
     }
 
-    free(intermediate_products);
     free(deltas);
     free(gradient_acc);
     free(scratchpad);
@@ -560,7 +533,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 /*
 Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 */
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, const float *intermediate_products, size_t intermediate_products_len, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad) {
 
     /*
     We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
@@ -568,8 +541,11 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     delta(L) (where L is the output layer) = '(a(L) - y_train(i)) .* f'(z(L))', where a(L) is the feed forward output.
 
     delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) .* f'(z(l))',
-    where z(l) is the intermediate product at layer l and f' the derivative of the activation of that layer.
+    where z(l) is the product befor the activation at layer l and f' the derivative of the activation of that layer.
 
+    However we can compute f'(z(l)) using the directly activation.
+    in fact we defined the activations derivatives in terms of the function itself,
+    so we can just do f'(a(l)), where f' is not the real derivative of the function but the derivative in terms of the "primitive".
     */
 
     /* delta(L) */
@@ -578,17 +554,17 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     float *out = nn->intermediate_activations + out_index;
 
     const size_t deltas_out_index = deltas_len - out_len;
-    size_t intermediate_products_index = intermediate_products_len - out_len;
+    size_t intermediate_activations_index = nn->intermediate_activations_len - out_len;
     for (size_t i = 0; i < out_len; ++i) {
         deltas[deltas_out_index + i] = out[i] - y_train[batch_i*out_len + i];
-        deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](intermediate_products[intermediate_products_index+i]);
+        deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](nn->intermediate_activations[intermediate_activations_index+i]);
     }
 
     /* delta(L-1) .. delta(1) */
     size_t deltas_index = deltas_out_index;
     for (size_t i = nn->layers_len - 1; i > 0; --i) {
         const size_t res_len = nn->units_configuration[i] + 1;
-        intermediate_products_index -= res_len;
+        intermediate_activations_index -= res_len;
 
         /* delta(l) = transpose(nn->layers[l]) * delta(l+1) .* f'(z(l) */
         nn_matrix_mul_t(
@@ -598,7 +574,7 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
         );
 
         for (size_t j = 1; j < res_len; ++j) {
-            scratchpad[j] *= nn->activations_derivative[i-1](intermediate_products[intermediate_products_index+j]);
+            scratchpad[j] *= nn->activations_derivative[i-1](nn->intermediate_activations[intermediate_activations_index+j]);
         }
 
         deltas_index -= res_len - 1;
