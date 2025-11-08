@@ -448,9 +448,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         exit(1);
     }
 
-    float error = FLT_MAX;
-    size_t epoch = 0;
-
     /* Array for storing the intermediate products in the feed forward */
     const size_t intermediate_products_len = nn->intermediate_activations_len;
     float *intermediate_products = nn_malloc(intermediate_products_len * sizeof(float));
@@ -489,20 +486,22 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     const size_t out_index = nn->intermediate_activations_len - out_len;
     const float *out = nn->intermediate_activations + out_index;
 
-    while (error > opt->err_threshold) {
+    for (size_t epoch = 0; epoch < opt->epoch_num; ++epoch) {
 
-        /* Getting the current error, using the MSE */
-        error = 0.0;
-        for (size_t i = 0; i < train_len; ++i) {
-            nn_feed_forward(nn, x_train + i*nn->units_configuration[0], NULL);
-
-            for (size_t j = 0; j < out_len; ++j) {
-                error += powf(y_train[i*out_len + j] - out[j], 2);
-            }
-        }
-        error *= 1.0/(2.0*out_len*train_len);
-
+        /* Error logging */
         if (opt->err_epoch_logging >= 0) {
+
+            /* Getting the current error, using the MSE */
+            float error = 0.0;
+            for (size_t i = 0; i < train_len; ++i) {
+                nn_feed_forward(nn, x_train + i*nn->units_configuration[0], NULL);
+
+                for (size_t j = 0; j < out_len; ++j) {
+                    error += powf(y_train[i*out_len + j] - out[j], 2);
+                }
+            }
+            error *= 1.0/(2.0*out_len*train_len);
+
             if (epoch % opt->err_epoch_logging == 0) {
                 printf("Error = %f\n", error);
             }
@@ -546,8 +545,19 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / current_batch_size);
             }
         }
-        epoch++;
     }
+
+    /* Logging error at the end */
+    float error = 0.0;
+    for (size_t i = 0; i < train_len; ++i) {
+        nn_feed_forward(nn, x_train + i*nn->units_configuration[0], NULL);
+
+        for (size_t j = 0; j < out_len; ++j) {
+            error += powf(y_train[i*out_len + j] - out[j], 2);
+        }
+    }
+    error *= 1.0/(2.0*out_len*train_len);
+    printf("Error = %f\n", error);
 
     free(intermediate_products);
     free(deltas);

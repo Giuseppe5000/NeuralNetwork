@@ -20,7 +20,7 @@ enum Weight_initialization {
 
 typedef struct {
     float learning_rate;
-    float err_threshold;
+    size_t epoch_num; /* Number of training epochs */
 
     /*
      *  After how much epochs the error will be logged.
