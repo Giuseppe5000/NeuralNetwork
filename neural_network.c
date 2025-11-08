@@ -12,6 +12,7 @@
 #endif
 
 /* ======================== Data structures ======================== */
+
 typedef float (*nn_activation)(float);
 typedef float (*nn_activation_derivative)(float);
 
@@ -69,6 +70,7 @@ struct NN {
     float *intermediate_activations;
     size_t intermediate_activations_len;
 };
+
 /* ================================================================= */
 
 
@@ -76,8 +78,8 @@ struct NN {
 /* ======================= Helper functions ======================== */
 
 /*
-Wrapping malloc with this helper function,
-handling OOM with exit and logging the error.
+*  Wrapping malloc with this helper function,
+*  handling OOM with error logging and exit.
 */
 static void *nn_malloc(size_t size) {
     void *ptr = malloc(size);
@@ -89,15 +91,15 @@ static void *nn_malloc(size_t size) {
 }
 
 /*
-Returns a random float between 'min' and 'max'.
+*  Returns a random float between 'min' and 'max'.
 */
 static float randf(float min, float max) {
     return min + (max - min) * ((float)rand()/(float)RAND_MAX);
 }
 
 /*
-Glorot initialization.
-https://en.wikipedia.org/wiki/Weight_initialization#Glorot_initialization
+*  Glorot weight initialization.
+*  (https://en.wikipedia.org/wiki/Weight_initialization#Glorot_initialization).
 */
 static float glorot(size_t fan_in, size_t fan_out) {
     const float x = sqrtf(6.0 / (fan_out + fan_in));
@@ -105,8 +107,8 @@ static float glorot(size_t fan_in, size_t fan_out) {
 }
 
 /*
-He initialization using Box-Muller transform.
-https://en.wikipedia.org/wiki/Weight_initialization#He_initialization
+*  He weight initialization, using Box-Muller transform.
+*  (https://en.wikipedia.org/wiki/Weight_initialization#He_initialization).
 */
 static float he(size_t fan_out) {
     const float stddev = sqrtf(2.0 / fan_out);
@@ -117,8 +119,8 @@ static float he(size_t fan_out) {
 }
 
 /*
-Multiply 'A' to 'B', putting the result in 'res'.
-'res' needs to be a matrix of 'A_rows' rows and 'B_cols' columns.
+*  Multiply the matrixes 'A' and 'B', putting the result in 'res' (naive implementation).
+*  'res' has to be a matrix of 'A_rows' rows and 'B_cols' columns.
 */
 static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *res) {
     if (A_cols != B_rows) {
@@ -138,8 +140,8 @@ static void nn_matrix_mul(const float *A, size_t A_rows, size_t A_cols, const fl
 }
 
 /*
-Multiply 'A' to the transpose of 'B' directly, putting the result in res.
-'res' needs to be a matrix of 'A_rows' rows and 'B_rows' columns.
+*  Multiply the matrixes 'A' and the transpose of 'B' directly, putting the result in 'res'.
+*  'res' needs to be a matrix of 'A_rows' rows and 'B_rows' columns.
 */
 static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *res) {
     if (A_cols != B_cols) {
@@ -157,11 +159,13 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
         }
     }
 }
+
 /* ================================================================= */
 
 
 
 /* ============== Activation functions and derivative ============== */
+
 static float sigmoid(float x) {
     return 1.0 / (1.0 + expf(-x));
 }
@@ -182,6 +186,7 @@ static float relu_derivative(float x) {
 static float tanh_derivative(float x) {
     return 1.0 - powf(tanhf(x), 2);
 }
+
 /* ================================================================= */
 
 
