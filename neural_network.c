@@ -12,7 +12,7 @@
 
 /* ======================== Data structures ======================== */
 
-typedef float (*nn_activation)(float);
+typedef void (*nn_activation)(float *, float *, size_t);
 typedef float (*nn_activation_derivative)(float);
 
 struct NN {
@@ -165,15 +165,27 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
 
 /* ============== Activation functions and derivative ============== */
 
+static void sigmoid_vec(float *x, float *out, size_t len) {
+    for (size_t i = 0; i < len; ++i) {
+        out[i] = 1.0 / (1.0 + expf(-x[i]));
+    }
+}
+
+static void relu_vec(float *x, float *out, size_t len) {
+    for (size_t i = 0; i < len; ++i) {
+        out[i] =  x[i] > 0.0 ? x[i] : 0.0;
+    }
+}
+
+static void tanh_vec(float *x, float *out, size_t len) {
+    for (size_t i = 0; i < len; ++i) {
+        out[i] =  tanhf(x[i]);
+    }
+}
+
 static float sigmoid(float x) {
     return 1.0 / (1.0 + expf(-x));
 }
-
-static float relu(float x) {
-    return x > 0.0 ? x : 0.0;
-}
-
-/* tanh already defined in math.h */
 
 static float sigmoid_derivative(float x) {
     return sigmoid(x) * (1.0 - sigmoid(x));
@@ -269,15 +281,15 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
     for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         switch (units_activation[i]) {
             case NN_SIGMOID:
-                (nn->activations)[i] = sigmoid;
+                (nn->activations)[i] = sigmoid_vec;
                 (nn->activations_derivative)[i] = sigmoid_derivative;
                 break;
             case NN_RELU:
-                (nn->activations)[i] = relu;
+                (nn->activations)[i] = relu_vec;
                 (nn->activations_derivative)[i] = relu_derivative;
                 break;
             case NN_TANH:
-                (nn->activations)[i] = tanhf;
+                (nn->activations)[i] = tanh_vec;
                 (nn->activations_derivative)[i] = tanh_derivative;
                 break;
             default:
@@ -375,9 +387,11 @@ static void nn_feed_forward(NN *nn, const float *x, float *intermediate_products
         }
 
         /* Applying activation function */
-        for (size_t j = is_not_last_layer; j < res_len + is_not_last_layer; ++j) {
-            activations_i_next[j] = nn->activations[i](activations_i_next[j]);
-        }
+        nn->activations[i](
+            activations_i_next + is_not_last_layer,
+            activations_i_next + is_not_last_layer,
+            res_len + is_not_last_layer
+        );
 
         activations_i = activations_i_next;
         activations_i_next += res_len + is_not_last_layer;
