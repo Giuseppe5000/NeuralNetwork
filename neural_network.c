@@ -449,11 +449,12 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
     /*
     *  Scratchpad array big enough used in backprop.
+    *  Big enough = the layer with the biggest amout of weights.
     *  It is useful for storing temporary outputs.
     */
     size_t largest_layer_size = 0;
-    for (size_t i = 0; i < nn->units_configuration_len; ++i) {
-        const size_t current_layer_len = (nn->units_configuration[i] + 1) * (nn->units_configuration[i] + 1);
+    for (size_t i = 0; i < nn->layers_len; ++i) {
+        const size_t current_layer_len = (nn->units_configuration[i] + 1) * (nn->units_configuration[i+1]);
         if (current_layer_len > largest_layer_size) {
             largest_layer_size = current_layer_len;
         }
