@@ -337,7 +337,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
         }
     }
 
-    /* Intermidiate activations initialize */
+    /* Intermediate activations initialize */
     nn->intermediate_activations_len = 0;
 
     for (size_t i = 0; i < nn->units_configuration_len; ++i) {
@@ -363,20 +363,19 @@ void nn_free(NN *nn) {
 void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x);
 
-    /* Copy the output of the last elements of intermediate activations in 'out' */
+    /* Copy the output, which is stored in the last elements of intermediate activations into 'out' */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     const size_t out_index = nn->intermediate_activations_len - out_len;
     memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
 }
 
 /*
-Feed forward the NN.
-
-'x' is an array of length 'nn->units_configuration[0]'.
-
-Each output of the feed forward is computed using 'nn->intermediate_activations',
-it has inside even the input.
-So the "prediction" of the network is stored at the end of this array.
+*  Feed forward the NN.
+*
+*  'x' is an array of length 'nn->units_configuration[0]'.
+*
+*  Each output of the feed forward is computed and stored in 'nn->intermediate_activations' (input included).
+*  So the final output of the network is stored at the end of this array.
 */
 static void nn_feed_forward(NN *nn, const float *x) {
     const size_t x_rows = 1;
@@ -392,6 +391,12 @@ static void nn_feed_forward(NN *nn, const float *x) {
 
     for (size_t i = 0; i < nn->layers_len; ++i) {
         const size_t res_len = nn->units_configuration[i+1];
+
+        /*
+        *  We need to know we we are on the last layer.
+        *  Because in that case we don't need to put 1.0 in activations_i_next
+        *  for biases multiplication.
+        */
         const unsigned int is_not_last_layer = (i != nn->layers_len - 1) ? 1 : 0;
 
         nn_matrix_mul(
@@ -412,6 +417,7 @@ static void nn_feed_forward(NN *nn, const float *x) {
             res_len
         );
 
+        /* Now the "input" is the 'activation_i = activation_i_next' and we move forward 'activation_i_next' */
         activations_i = activations_i_next;
         activations_i_next += res_len + is_not_last_layer;
         x_cols = nn->units_configuration[i+1];
@@ -424,19 +430,26 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         exit(1);
     }
 
-    /* Array for storing deltas*/
+
+    /*
+    *  ==========================
+    *  || Initial memory setup ||
+    *  ==========================
+    */
+
+    /* Array for storing deltas (for backprop) */
     size_t deltas_len = 0;
     for (size_t i = 1; i < nn->units_configuration_len; ++i) {
         deltas_len += nn->units_configuration[i];
     }
     float *deltas = nn_malloc(deltas_len * sizeof(float));
 
-    /* Array for accumulate gradients */
+    /* Array for accumulating gradients */
     float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
 
     /*
-    Scratchpad array for backprop.
-    Length is the number of weights of the largest layer.
+    *  Scratchpad array big enough used in backprop.
+    *  It is useful for storing temporary outputs.
     */
     size_t largest_layer_size = 0;
     for (size_t i = 0; i < nn->units_configuration_len; ++i) {
@@ -447,7 +460,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     }
     float *scratchpad = nn_malloc(largest_layer_size * sizeof(float));
 
-    /* Array of index, that will be shuffled in order to do Stochastic and Mini-batch GD */
+    /* Array of train index, that will be shuffled in order to do Stochastic and Mini-batch GD */
     size_t *train_indexes = nn_malloc(train_len * sizeof(size_t));
     for (size_t i = 0; i < train_len; ++i) {
         train_indexes[i] = i;
@@ -458,18 +471,27 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     const size_t out_index = nn->intermediate_activations_len - out_len;
     const float *out = nn->intermediate_activations + out_index;
 
-    /* If logging is enabled, print some information on the top of the file */
+    /* If logging is enabled, print some informations on the top of the file */
     if (opt->log_fp != NULL) {
         fprintf(opt->log_fp, "# COL INFOS: x:(epoch) y:(loss)\n");
         fflush(opt->log_fp);
     }
 
+
+    /*
+    *  =================
+    *  || Epochs loop ||
+    *  =================
+    */
+
     for (size_t epoch = 0; epoch < opt->epoch_num; ++epoch) {
 
-        /* Error logging */
+        /*
+        *  (If error log is enabled)
+        *  Compute the error (using MSE)
+        *  and write it in the log.
+        */
         if (opt->log_fp != NULL) {
-
-            /* Getting the current error, using the MSE */
             float error = 0.0;
             for (size_t i = 0; i < train_len; ++i) {
                 nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
@@ -484,12 +506,6 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             fflush(opt->log_fp); /* TODO: Maybe it's not a good idea... */
         }
 
-        /*
-        ==================================
-        / Gradient Descent with backprop /
-        ==================================
-        */
-
         /* Shuffle train_indexes using Fisher–Yates shuffle algorithm (only if isn't used Batch GD) */
         if (opt->batch_size != train_len) {
             for (size_t i = train_len - 1; i > 0; --i) {
@@ -500,13 +516,15 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             }
         }
 
+        /* Effective training */
         for (size_t i = 0; i < train_len; i+=opt->batch_size) {
+
             /* Reset gradient accumulator */
             memset(gradient_acc, 0, nn->weights_len * sizeof(float));
 
             /*
-            (In the case of Mini-batch GD).
-            If train_len is not divisible by opt->mini_batch_size, the last batch length is < opt->mini_batch_size.
+            *  (Edge case in Mini-batch GD).
+            *  If train_len is not divisible by opt->mini_batch_size, the last batch length is < opt->mini_batch_size.
             */
             const size_t current_batch_size = (i + opt->batch_size - 1 >= train_len) ? (train_len - i) : opt->batch_size;
 
@@ -531,21 +549,30 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 }
 
 /*
-Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
+*  Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 */
 static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad) {
 
     /*
-    We need to calculate all the delta(l) arrays (errors of the layer l) starting from the output layer.
-
-    delta(L) (where L is the output layer) = '(a(L) - y_train(i)) .* f'(z(L))', where a(L) is the feed forward output.
-
-    delta(l) (l from 1 to L-1) = 'transpose(nn->layers[l]) * delta(l+1) .* f'(z(l))',
-    where z(l) is the product befor the activation at layer l and f' the derivative of the activation of that layer.
-
-    However we can compute f'(z(l)) using the directly activation.
-    in fact we defined the activations derivatives in terms of the function itself,
-    so we can just do f'(a(l)), where f' is not the real derivative of the function but the derivative in terms of the "primitive".
+    *  We need to calculate all the delta(l) arrays (errors of the neurons at layer l) starting from the output.
+    *  We start from the computation of the last delta and we use it for computing the previous, and so on.
+    *
+    *
+    *  delta(L) (where L is the output layer) = '' (a(L) - y_train) .* f'(z(L)) '',
+    *  where:
+    *    - a(L) is the output (activation) of the layer L.
+    *    - z(L) is the preactivation of a(L).
+    *    - f' is the derivative of the activation function in that layer.
+    *
+    *
+    *  After getting delta(L) we can compute all the other deltas using this formula:
+    *  delta(l) (l from 1 to L-1) = '' transpose(nn->layers[l]) * delta(l+1) .* f'(z(l)) ''.
+    *  [NOTE]: delta(0) (the input) is not included.
+    *
+    *
+    *  By the way, we can compute f'(z(l)) using the directly activation a(l), so there is no need of storing all z(l).
+    *  In fact we defined the activations derivatives in terms of the function itself,
+    *  so we can just do f'(a(l)), where f' is not the real derivative of the function but the derivative in terms of the "primitive".
     */
 
     /* delta(L) */
@@ -582,10 +609,10 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     }
 
     /*
-    Now we have all the delta(i) and we can calculate the gradient(l) (gradient of the layer l) for each l.
-
-    gradient(l) = 'delta(l+1) * transpose(a(l))',
-    where a(l) is the output ('f(z(l))') of the layer l.
+    *  Now we have all the delta(i) and we can calculate the gradient(l) (gradient of the layer l) for each l.
+    *
+    *  The formula is:
+    *  gradient(l) = 'delta(l+1) * transpose(a(l))',
     */
 
     size_t gradient_acc_index = 0;

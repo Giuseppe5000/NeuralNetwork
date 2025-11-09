@@ -31,5 +31,6 @@ However the code **should** work without any problems on MacOS with Clang and on
 - [x] Add Softmax activation function (only final layer).
 - [x] It is possible to eliminate intermediate_products and use the intermediate activations to compute the derivatives of products, this is possible because the derivatives (for now) are defined in terms of the primitive function. Before doing this it is better to implement softmax.
 - [x] Check const correctness.
+- [ ] Add train option for chioce between MSE and Cross-entropy loss.
 - [ ] Simplify the code where is possible.
-- [ ] Improve comments and documentation.
+- [x] Improve comments and documentation.
