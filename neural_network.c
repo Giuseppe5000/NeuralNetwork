@@ -612,7 +612,7 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     *  Now we have all the delta(i) and we can calculate the gradient(l) (gradient of the layer l) for each l.
     *
     *  The formula is:
-    *  gradient(l) = 'delta(l+1) * transpose(a(l))',
+    *  gradient(l) = 'a(l) * delta(l+1)',
     */
 
     size_t gradient_acc_index = 0;
