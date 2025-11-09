@@ -83,7 +83,7 @@ struct NN {
 static void *nn_malloc(size_t size) {
     void *ptr = malloc(size);
     if (ptr == NULL) {
-        fprintf(stderr, "[ERROR]: Out of memory.");
+        fprintf(stderr, "[ERROR]: Out of memory.\n");
         exit(1);
     }
     return ptr;
@@ -426,7 +426,7 @@ static void nn_feed_forward(NN *nn, const float *x) {
 
 void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
     if (opt->batch_size < 1 || opt->batch_size > train_len) {
-        fprintf(stderr, "[ERROR]: mini_batch_size has to be in interval [1..train_len].");
+        fprintf(stderr, "[ERROR]: mini_batch_size has to be in interval [1..train_len].\n");
         exit(1);
     }
 
