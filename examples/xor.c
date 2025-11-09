@@ -4,22 +4,23 @@
 FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
 
-int main(void) {
-    size_t units_configuration[] = {2, 3, 1};
-    size_t units_configuration_len = sizeof(units_configuration) / sizeof(units_configuration[0]);
+#define ARRAY_LEN(x) sizeof(x)/sizeof(x[0])
 
+int main(void) {
+    size_t units_configuration[] = {2, 2, 1};
     enum Activation units_activation[] = {NN_SIGMOID, NN_SIGMOID};
+    size_t units_configuration_len = ARRAY_LEN(units_configuration);
 
     NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
-    /* Train */
-
+    /* Train data */
     const float x_train[] = {
         0, 0,
         0, 1,
         1, 0,
-        1, 1
+        1, 1,
     };
+    const size_t train_len = ARRAY_LEN(x_train) / units_configuration[0];
 
     const float y_train[] = {
         0,
@@ -28,13 +29,16 @@ int main(void) {
         0,
     };
 
-    const size_t train_len = sizeof(x_train) / sizeof(x_train[0]) / units_configuration[0];
-
-    FILE* fp = fopen("xor_train.txt", "w");
+    const char *file_path = "xor_train.txt";
+    FILE* fp = fopen(file_path, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "[ERROR]: Cannot open file %s\n", file_path);
+        return 1;
+    }
 
     const NN_train_opt opt = {
         .learning_rate = 2,
-        .epoch_num = 2000,
+        .epoch_num = 1500,
         .log_fp = fp,
         .batch_size = 4,
     };
