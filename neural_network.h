@@ -9,7 +9,7 @@ enum Activation {
     NN_SIGMOID,
     NN_RELU,
     NN_TANH,
-    NN_SOFTMAX, /* usable only in the output layer! */
+    NN_SOFTMAX, /* Usable only in the output layer! */
 };
 
 enum Weight_initialization {
@@ -51,15 +51,17 @@ typedef struct {
 *
 *  Example:
 *      size_t units_configuration[] = {3, 2, 1};
-*      enum Activation units_activation[] = {NN_SIGMOID, NN_TANH};
+*      enum Activation units_activation[] = {NN_TANH, NN_SIGMOID};
 *
 *                  b0
 *                       b1
 *               |> x0
 *               |     > x3
 *      input => |> x1      > x5 => output
-*               |     > x4
-*               |> x2
+*               |     > x4   |
+*               |> x2   |    |
+*                       |    |
+*                     TANH  SIGMOID
 *
 *      Here we have a (fully connected) 2-layer neural network (or a 1-hidden-layer nn).
 *

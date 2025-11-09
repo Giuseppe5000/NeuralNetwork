@@ -290,7 +290,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
 
             switch (w_init) {
                 case NN_UNIFORM:
-                    *weight = randf(-0.01,0.01);
+                    *weight = randf(-0.5,0.5);
                     break;
                 case NN_GLOROT:
                     *weight = glorot(units_configuration[i] + 1, units_configuration[i+1]);
