@@ -29,6 +29,7 @@ int main(void) {
         0,
     };
 
+    /* Train */
     const char *file_path = "xor_train.txt";
     FILE* fp = fopen(file_path, "w");
     if (fp == NULL) {
@@ -41,6 +42,7 @@ int main(void) {
         .epoch_num = 1500,
         .log_fp = fp,
         .batch_size = 4,
+        .loss = NN_CROSS_ENTROPY
     };
 
     nn_fit(nn, x_train, y_train, train_len, &opt);

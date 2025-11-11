@@ -227,12 +227,6 @@ static float tanh_derivative(float x_tanh) {
     return 1.0 - powf(x_tanh, 2);
 }
 
-static float softmax_derivative(float x) {
-    (void) x;
-    /* Just don't do anything, this function applies only to the last layer */
-    return 1.0;
-}
-
 /* ================================================================= */
 
 
@@ -248,7 +242,8 @@ static void backpropagation(
     float *deltas,
     size_t deltas_len,
     float *gradient_acc,
-    float *scratchpad
+    float *scratchpad,
+    enum Loss_function loss
 );
 
 /* ================================================================= */
@@ -329,7 +324,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
                     exit(1);
                 }
                 (nn->activations)[i] = softmax;
-                (nn->activations_derivative)[i] = softmax_derivative;
+                (nn->activations_derivative)[i] = NULL; /* Not needed */
                 break;
             default:
                 fprintf(stderr, "[ERROR]: Check if the 'units_activation' length == units_configuration_len - 1.\n");
@@ -430,6 +425,11 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         exit(1);
     }
 
+    if (opt->loss == NN_MSE && nn->activations[nn->layers_len - 1] == softmax) {
+        fprintf(stderr, "[ERROR]: You should use NN_CROSS_ENTROPY with softmax activation.\n");
+        exit(1);
+    }
+
 
     /*
     *  ==========================
@@ -489,19 +489,48 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 
         /*
         *  (If error log is enabled)
-        *  Compute the error (using MSE)
+        *  Compute the error (using the selected loss function)
         *  and write it in the log.
         */
         if (opt->log_fp != NULL) {
             float error = 0.0;
-            for (size_t i = 0; i < train_len; ++i) {
-                nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
 
-                for (size_t j = 0; j < out_len; ++j) {
-                    error += powf(y_train[i*out_len + j] - out[j], 2);
-                }
+            switch(opt->loss) {
+                case NN_CROSS_ENTROPY:
+                    for (size_t i = 0; i < train_len; ++i) {
+                        nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
+                        float error_i = 0.0;
+
+                        /* If the nn has a single output we need to use this slightly different formula */
+                        if (out_len == 1) {
+                            error_i = y_train[i*out_len] * logf(out[0]) + (1 - y_train[i*out_len]) * logf(1 - out[0]);
+                        } else {
+                            for (size_t j = 0; j < out_len; ++j) {
+                                error_i += y_train[i*out_len + j] * logf(out[j]);
+                            }
+                        }
+
+                        error_i *= -1;
+                        error += error_i;
+                    }
+                    error *= 1.0/(train_len);
+                    break;
+
+                case NN_MSE:
+                    for (size_t i = 0; i < train_len; ++i) {
+                        nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
+
+                        for (size_t j = 0; j < out_len; ++j) {
+                            error += powf(y_train[i*out_len + j] - out[j], 2);
+                        }
+                    }
+                    error *= 1.0/(2.0*out_len*train_len);
+                    break;
+
+                default:
+                    fprintf(stderr, "[ERROR]: Invalid loss function.\n");
+                    exit(1);
             }
-            error *= 1.0/(2.0*out_len*train_len);
 
             fprintf(opt->log_fp, "%zu %f\n", epoch, error);
             fflush(opt->log_fp); /* TODO: Maybe it's not a good idea... */
@@ -533,7 +562,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 const size_t train_i = train_indexes[i + batch_i];
 
                 nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0]);
-                backpropagation(nn, train_i, y_train, deltas, deltas_len, gradient_acc, scratchpad);
+                backpropagation(nn, train_i, y_train, deltas, deltas_len, gradient_acc, scratchpad, opt->loss);
             }
 
             /* Update weights using the gradients */
@@ -552,7 +581,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 /*
 *  Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 */
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad, enum Loss_function loss) {
 
     /*
     *  We need to calculate all the delta(l) arrays (errors of the neurons at layer l) starting from the output.
@@ -585,7 +614,9 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     size_t intermediate_activations_index = nn->intermediate_activations_len - out_len;
     for (size_t i = 0; i < out_len; ++i) {
         deltas[deltas_out_index + i] = out[i] - y_train[batch_i*out_len + i];
-        deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](nn->intermediate_activations[intermediate_activations_index+i]);
+        if (loss == NN_MSE) {
+            deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](nn->intermediate_activations[intermediate_activations_index+i]);
+        }
     }
 
     /* delta(L-1) .. delta(1) */

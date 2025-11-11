@@ -18,6 +18,11 @@ enum Weight_initialization {
     NN_HE,
 };
 
+enum Loss_function {
+    NN_CROSS_ENTROPY,
+    NN_MSE,
+};
+
 typedef struct {
     float learning_rate;
     size_t epoch_num; /* Number of training epochs */
@@ -39,7 +44,9 @@ typedef struct {
      *  When '> 1' and '< train_len' => Mini-batch Gradient Descent.
      *  When '== train_len'          => Batch Gradient Descent.
      */
-    size_t batch_size;
+     size_t batch_size;
+
+     enum Loss_function loss;
 } NN_train_opt;
 
 /*

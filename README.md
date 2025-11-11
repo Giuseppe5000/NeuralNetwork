@@ -30,6 +30,7 @@ And you'll find all the examples executables in the ```build_examples``` directo
 - [x] Add Softmax activation function (only final layer).
 - [x] It is possible to eliminate intermediate_products and use the intermediate activations to compute the derivatives of products, this is possible because the derivatives (for now) are defined in terms of the primitive function. Before doing this it is better to implement softmax.
 - [x] Check const correctness.
-- [ ] Add train option for chioce between MSE and Cross-entropy loss.
-- [ ] Simplify the code where is possible.
+- [x] Add train option for chioce between MSE and Cross-entropy loss.
 - [x] Improve comments and documentation.
+- [ ] Potential nan when computing cross entropy (check this even for weights init).
+- [ ] Simplify the code where is possible.
