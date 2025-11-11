@@ -19,10 +19,9 @@ make
 ```
 And you'll find all the examples executables in the ```build_examples``` directory.
 
-## Portability
-I tested the code on a linux distro with GCC.
-
-However the code **should** work without any problems on MacOS with Clang and on Windows with MSVC or minGW.
+## Requirements
+- Any C99-compatible compiler.
+- Gnuplot, only needed for examples chart view (the example works anyway, logging the train data into a file).
 
 ## TODOs
 - [x] Optimize the use of intermediate_products in feed\_forward (by removing the res var). But in this way should store the activations and not the products. (Btw intermediate\_products can be stored on the NN struct).\ Maybe i can store on NN both intermediate\_products and intermediate\_activations.
