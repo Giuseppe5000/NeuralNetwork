@@ -13,7 +13,7 @@ int pclose(FILE *stream);
 * Transoform the input number (in big endian) into a little endian number.
 */
 uint32_t to_little_endian(uint32_t big_endian_num) {
-    unsigned char b1, b2, b3, b4;
+    uint8_t b1, b2, b3, b4;
 
     b1 = big_endian_num & 255;
     b2 = (big_endian_num >> 8) & 255;
@@ -179,10 +179,10 @@ float *read_mnist_labels(const char *path, size_t *labels_len) {
 }
 
 int main(void) {
-    const char* images_file_path = "train-images-idx3-ubyte";
-    const char* labels_file_path = "train-labels-idx1-ubyte";
-
     /* Reading training data */
+    const char *images_file_path = "train-images-idx3-ubyte";
+    const char *labels_file_path = "train-labels-idx1-ubyte";
+
     size_t train_imgs_len = 0;
     size_t image_size = 0;
     float *train_imgs = read_mnist_images(images_file_path, &train_imgs_len, &image_size);
@@ -191,38 +191,39 @@ int main(void) {
     float *train_labels = read_mnist_labels(labels_file_path, &train_labels_len);
 
     /* Network init */
-    // size_t units_configuration[] = {image_size, ............ 10};
-    // enum Activation units_activation[] =
-    // size_t units_configuration_len = ARRAY_LEN(units_configuration);
+    size_t units_configuration[] = {image_size, 128, 64, CLASS_NUM};
+    enum Activation units_activation[] = {NN_SIGMOID, NN_SIGMOID, NN_SOFTMAX};
+    size_t units_configuration_len = ARRAY_LEN(units_configuration);
 
-    // NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
-
-    // FILE* fp = fopen("mnist_train.txt", "w");
-
-    // const NN_train_opt opt = {
-    //     .learning_rate = ,
-    //     .epoch_num = ,
-    //     .log_fp = fp,
-    //     .batch_size = ,
-    //     .loss = ,
-    // };
+    NN *nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
     /* Train */
-    // nn_fit(nn, train_imgs, train_labels, train_imgs_len, &opt);
+    FILE *fp = fopen("mnist_train.txt", "w");
+    const NN_train_opt opt = {
+        .learning_rate = 0.1,
+        .epoch_num = 1000,
+        .log_fp = fp,
+        .batch_size = 128,
+        .loss = NN_CROSS_ENTROPY,
+    };
 
-    /* Memory free */
-    // nn_free(nn);
-    // fclose(fp);
+    nn_fit(nn, train_imgs, train_labels, train_imgs_len, &opt);
+    fclose(fp);
     free(train_imgs);
     free(train_labels);
 
+    /* Get result with test set */
+    /* TODO */
+
+    nn_free(nn);
+
     /* Plotting */
-    // FILE* gnuplotPipe = popen("gnuplot -persistent", "w");
-    // fprintf(gnuplotPipe, "set grid \n");
-    // fprintf(gnuplotPipe, "set xlabel \"Epochs\" \n");
-    // fprintf(gnuplotPipe, "set ylabel \"Loss\" \n");
-    // fprintf(gnuplotPipe, "plot '%s' lc rgb \"black\" \n", "mnist_train.txt");
-    // pclose(gnuplotPipe);
+    FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
+    fprintf(gnuplotPipe, "set grid \n");
+    fprintf(gnuplotPipe, "set xlabel \"Epochs\" \n");
+    fprintf(gnuplotPipe, "set ylabel \"Loss\" \n");
+    fprintf(gnuplotPipe, "plot '%s' lc rgb \"black\" \n", "mnist_train.txt");
+    pclose(gnuplotPipe);
 
     return 0;
 }
