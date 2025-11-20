@@ -227,7 +227,7 @@ int main(void) {
     fprintf(gnuplotPipe, "set grid \n");
     fprintf(gnuplotPipe, "set xlabel \"Epochs\" \n");
     fprintf(gnuplotPipe, "set ylabel \"Loss\" \n");
-    fprintf(gnuplotPipe, "plot '%s' using 1:2 with lines title 'Train loss' linecolo rgb \"blue\", \ ", "mnist_train.txt");
+    fprintf(gnuplotPipe, "plot '%s' using 1:2 with lines title 'Train loss' linecolo rgb \"blue\", \\ ", "mnist_train.txt");
     fprintf(gnuplotPipe, "'%s' using 1:2 with lines title 'Test loss' linecolo rgb \"red\" \n", "mnist_test.txt");
     pclose(gnuplotPipe);
 
