@@ -23,15 +23,3 @@ And you'll find all the examples executables in the ```build_examples``` directo
 ## Requirements
 - Any C99-compatible compiler.
 - Gnuplot, only needed for examples chart view (the example works anyway, logging the train data into a file).
-
-## TODOs
-- [x] Optimize the use of intermediate_products in feed\_forward (by removing the res var). But in this way should store the activations and not the products. (Btw intermediate\_products can be stored on the NN struct).\ Maybe i can store on NN both intermediate\_products and intermediate\_activations.
-- [x] Remove the use of VLAs from backprop, by using an allocated big enough space with malloc at the start of fit.
-- [x] Fix mini batch implementation by taking random n elements each time (at the moment takes always the first n elements, so it is wrong).
-- [x] Add Softmax activation function (only final layer).
-- [x] It is possible to eliminate intermediate_products and use the intermediate activations to compute the derivatives of products, this is possible because the derivatives (for now) are defined in terms of the primitive function. Before doing this it is better to implement softmax.
-- [x] Check const correctness.
-- [x] Add train option for chioce between MSE and Cross-entropy loss.
-- [x] Improve comments and documentation.
-- [ ] Potential nan when computing cross entropy (check this even for weights init).
-- [ ] Simplify the code where is possible.
