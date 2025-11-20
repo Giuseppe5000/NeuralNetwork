@@ -27,6 +27,7 @@ uint32_t to_little_endian(uint32_t big_endian_num) {
 * Read the image data from the IDX file returning the pointer to the float data.
 * It also fill 'img_len' with the number of images and 'img_size' with the byte size of one image.
 *
+* (https://github.com/cvdfoundation/mnist?tab=readme-ov-file#file-format)
 * IDX format is a simple format for vectors and multidimensional matrices of various numerical types.
 * The basic format is:
 * ---------------------------
@@ -61,27 +62,26 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
     }
 
     /* Magic number */
-    uint32_t magic_number = 0;
-    fread(&magic_number, sizeof(uint32_t), 1, fp);
-    const uint8_t *magic_num_bytes = (uint8_t*) &magic_number;
+    uint8_t magic_number[4] = {0};
+    fread(magic_number, sizeof(uint8_t), 4, fp);
 
     printf("Magic number:\n");
-    printf("First byte: 0x%02X\n", magic_num_bytes[0]);
-    printf("Second byte: 0x%02X\n", magic_num_bytes[1]);
-    printf("Third byte: 0x%02X\n", magic_num_bytes[2]);
-    printf("Fourth byte: 0x%02X\n\n", magic_num_bytes[3]);
+    printf("First byte: 0x%02X\n", magic_number[0]);
+    printf("Second byte: 0x%02X\n", magic_number[1]);
+    printf("Third byte: 0x%02X\n", magic_number[2]);
+    printf("Fourth byte: 0x%02X\n\n", magic_number[3]);
 
-    if (magic_num_bytes[0] != 0 || magic_num_bytes[1] != 0) {
+    if (magic_number[0] != 0 || magic_number[1] != 0) {
         fprintf(stderr, "[ERROR]: Expected 0 as the first two bytes of magic number!\n");
         exit(1);
     }
 
-    if (magic_num_bytes[2] != 8) {
+    if (magic_number[2] != 8) {
         fprintf(stderr, "[ERROR]: Expected unsigned byte (0x08) data type!\n");
         exit(1);
     }
 
-    if (magic_num_bytes[3] != 3) {
+    if (magic_number[3] != 3) {
         fprintf(stderr, "[ERROR]: Expected 3 dimensions!\n");
         exit(1);
     }
@@ -117,7 +117,7 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 /*
 * Like 'read_mnist_images' but for the labels.
 */
-float *read_mnist_labels(const char *path, size_t *labels_len) {
+float *read_mnist_labels(const char *path) {
     FILE *fp = fopen(path, "rb");
 
     if (fp == NULL) {
@@ -126,27 +126,26 @@ float *read_mnist_labels(const char *path, size_t *labels_len) {
     }
 
     /* Magic number */
-    uint32_t magic_number = 0;
-    fread(&magic_number, sizeof(uint32_t), 1, fp);
-    const uint8_t *magic_num_bytes = (uint8_t*) &magic_number;
+    uint8_t magic_number[4] = {0};
+    fread(magic_number, sizeof(uint8_t), 4, fp);
 
     printf("Magic number:\n");
-    printf("First byte: 0x%02X\n", magic_num_bytes[0]);
-    printf("Second byte: 0x%02X\n", magic_num_bytes[1]);
-    printf("Third byte: 0x%02X\n", magic_num_bytes[2]);
-    printf("Fourth byte: 0x%02X\n\n", magic_num_bytes[3]);
+    printf("First byte: 0x%02X\n", magic_number[0]);
+    printf("Second byte: 0x%02X\n", magic_number[1]);
+    printf("Third byte: 0x%02X\n", magic_number[2]);
+    printf("Fourth byte: 0x%02X\n\n", magic_number[3]);
 
-    if (magic_num_bytes[0] != 0 || magic_num_bytes[1] != 0) {
+    if (magic_number[0] != 0 || magic_number[1] != 0) {
         fprintf(stderr, "[ERROR]: Expected 0 as the first two bytes of magic number!\n");
         exit(1);
     }
 
-    if (magic_num_bytes[2] != 8) {
+    if (magic_number[2] != 8) {
         fprintf(stderr, "[ERROR]: Expected unsigned byte (0x08) data type!\n");
         exit(1);
     }
 
-    if (magic_num_bytes[3] != 1) {
+    if (magic_number[3] != 1) {
         fprintf(stderr, "[ERROR]: Expected 1 dimension!\n");
         exit(1);
     }
@@ -155,20 +154,19 @@ float *read_mnist_labels(const char *path, size_t *labels_len) {
     uint32_t dimension = 0;
     fread(&dimension, sizeof(uint32_t), 1, fp);
     dimension = to_little_endian(dimension);
-    *labels_len = dimension;
 
     /* Data */
-    uint8_t *data = malloc(sizeof(uint8_t) * (*labels_len));
-    fread(data, sizeof(uint8_t), (*labels_len), fp);
+    uint8_t *data = malloc(sizeof(uint8_t) * dimension;
+    fread(data, sizeof(uint8_t), dimension, fp);
     fclose(fp);
 
     /*
     * Each element of data is a number in [0,9],
     * but the train need it in one-hot format.
     */
-    float *data_one_hot = calloc((*labels_len) * CLASS_NUM, sizeof(float));
+    float *data_one_hot = calloc(dimension * CLASS_NUM, sizeof(float));
 
-    for (size_t i = 0; i < (*labels_len); ++i) {
+    for (size_t i = 0; i < dimension; ++i) {
         uint8_t label = data[i];
         data_one_hot[i*CLASS_NUM + label] = 1.0;
     }
