@@ -156,7 +156,7 @@ float *read_mnist_labels(const char *path) {
     dimension = to_little_endian(dimension);
 
     /* Data */
-    uint8_t *data = malloc(sizeof(uint8_t) * dimension;
+    uint8_t *data = malloc(sizeof(uint8_t) * dimension);
     fread(data, sizeof(uint8_t), dimension, fp);
     fclose(fp);
 
@@ -177,16 +177,20 @@ float *read_mnist_labels(const char *path) {
 }
 
 int main(void) {
-    /* Reading training data */
+    /* Reading training and test data */
     const char *images_file_path = "train-images-idx3-ubyte";
     const char *labels_file_path = "train-labels-idx1-ubyte";
+    const char *images_test_file_path = "t10k-images-idx3-ubyte";
+    const char *labels_test_file_path = "t10k-labels-idx1-ubyte";
 
     size_t train_imgs_len = 0;
     size_t image_size = 0;
     float *train_imgs = read_mnist_images(images_file_path, &train_imgs_len, &image_size);
+    float *train_labels = read_mnist_labels(labels_file_path);
 
-    size_t train_labels_len = 0;
-    float *train_labels = read_mnist_labels(labels_file_path, &train_labels_len);
+    size_t test_imgs_len = 0;
+    float *test_imgs = read_mnist_images(images_test_file_path, &test_imgs_len, &image_size);
+    float *test_labels = read_mnist_labels(labels_test_file_path);
 
     /* Network init */
     size_t units_configuration[] = {image_size, 128, 64, CLASS_NUM};
@@ -196,23 +200,28 @@ int main(void) {
     NN *nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
     /* Train */
-    FILE *fp = fopen("mnist_train.txt", "w");
+    FILE *fp_train = fopen("mnist_train.txt", "w");
+    FILE *fp_test  = fopen("mnist_test.txt", "w");
     const NN_train_opt opt = {
         .learning_rate = 0.1,
-        .epoch_num = 1000,
-        .log_fp = fp,
+        .epoch_num = 70,
+        .log_fp = fp_train,
+        // .loss_log_train_fp = fp_train,
+        // .loss_log_test_fp = fp_test,
         .batch_size = 128,
         .loss = NN_CROSS_ENTROPY,
     };
 
+    // nn_fit(nn, train_imgs, train_labels, train_imgs_len, test_imgs, test_labels, test_imgs_len, &opt);
     nn_fit(nn, train_imgs, train_labels, train_imgs_len, &opt);
-    fclose(fp);
+
+    /* Memory free */
+    fclose(fp_train);
+    fclose(fp_test);
     free(train_imgs);
     free(train_labels);
-
-    /* Get result with test set */
-    /* TODO */
-
+    free(test_imgs);
+    free(test_labels);
     nn_free(nn);
 
     /* Plotting */
