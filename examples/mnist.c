@@ -11,7 +11,7 @@ int pclose(FILE *stream);
 /*
 * Transoform the input number (in big endian) into a little endian number.
 */
-int32_t to_little_endian(int32_t big_endian_num) {
+uint32_t to_little_endian(uint32_t big_endian_num) {
     unsigned char b1, b2, b3, b4;
 
     b1 = big_endian_num & 255;
@@ -19,7 +19,7 @@ int32_t to_little_endian(int32_t big_endian_num) {
     b3 = (big_endian_num >> 16) & 255;
     b4 = (big_endian_num >> 24) & 255;
 
-    return ((int32_t)b1 << 24) + ((int32_t)b2 << 16) + ((int32_t)b3 << 8) + b4;
+    return ((uint32_t)b1 << 24) + ((uint32_t)b2 << 16) + ((uint32_t)b3 << 8) + b4;
 }
 
 /*
