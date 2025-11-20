@@ -28,13 +28,14 @@ typedef struct {
     size_t epoch_num; /* Number of training epochs */
 
     /*
-     *  FILE pointer where the epochs and errors will be logged.
+     *  FILE pointer where the loss through the epochs will be logged.
      *  If == 'NULL' no log occurs.
      *
-     * The output file then can be plotted on gnuplot (and similar)
+     * The output files then can be plotted on gnuplot (and similar)
      * (see the examples).
      */
-    FILE* log_fp;
+     FILE* loss_log_train_fp;
+     FILE* loss_log_test_fp;
 
     /*
      *  How many training samples use at once for gradients update.
@@ -101,12 +102,16 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
 void nn_free(NN *nn);
 
 /*
-*  Train the neural network using 'x_train' and 'y_train' data.
+*  Train the neural network using train data (features are in x_* and correct labels in y_*)
+*  and checks also test data loss (if 'loss_log_test_fp' != NULL).
 *
 *  'x_train' has to be a matrix of 'train_len' rows and 'units_configuration[0]' columns.
 *  'y_train' has to be a matrix of 'train_len' rows and 'units_configuration[units_configuration_len - 1]' columns.
+*
+*  'x_test' has to be a matrix of 'test_len' rows and 'units_configuration[0]' columns.
+*  'y_test' has to be a matrix of 'test_len' rows and 'units_configuration[units_configuration_len - 1]' columns.
 */
-void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt);
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const float *x_test, const float* y_test, size_t test_len, const NN_train_opt *opt);
 
 /*
 *  Feed forward the network through the layers.

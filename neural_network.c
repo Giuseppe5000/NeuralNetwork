@@ -73,6 +73,23 @@ struct NN {
 /* ================================================================= */
 
 
+/* ===================== Forward declarations ====================== */
+
+static void nn_feed_forward(NN *nn, const float *x);
+
+static void backpropagation(
+    const NN *nn,
+    size_t batch_i,
+    const float *y_train,
+    float *deltas,
+    size_t deltas_len,
+    float *gradient_acc,
+    float *scratchpad,
+    enum Loss_function loss
+);
+
+/* ================================================================= */
+
 
 /* ======================= Helper functions ======================== */
 
@@ -159,8 +176,61 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
     }
 }
 
-/* ================================================================= */
+/*
+*  Computes the loss of the epoch 'epoch' using the selected loss function ('loss')
+*  and using the data in 'x_data' and 'y_data' of length 'data_len'.
+*  The computed loss will be printed into 'fp'.
+*/
+static void loss_log(NN* nn, FILE *fp, size_t epoch, enum Loss_function loss, const float *x_data, const float *y_data, size_t data_len) {
+    /* Getting output from intermediate activation */
+    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
+    const size_t out_index = nn->intermediate_activations_len - out_len;
+    const float *out = nn->intermediate_activations + out_index;
 
+    float error = 0.0;
+
+    switch(loss) {
+        case NN_CROSS_ENTROPY:
+            for (size_t i = 0; i < data_len; ++i) {
+                nn_feed_forward(nn, x_data + i*nn->units_configuration[0]);
+                float error_i = 0.0;
+
+                /* If the nn has a single output we need to use this slightly different formula */
+                if (out_len == 1) {
+                    error_i = y_data[i*out_len] * logf(out[0]) + (1 - y_data[i*out_len]) * logf(1 - out[0]);
+                } else {
+                    for (size_t j = 0; j < out_len; ++j) {
+                        error_i += y_data[i*out_len + j] * logf(out[j]);
+                    }
+                }
+
+                error_i *= -1;
+                error += error_i;
+            }
+            error *= 1.0/(data_len);
+            break;
+
+        case NN_MSE:
+            for (size_t i = 0; i < data_len; ++i) {
+                nn_feed_forward(nn, x_data + i*nn->units_configuration[0]);
+
+                for (size_t j = 0; j < out_len; ++j) {
+                    error += powf(y_data[i*out_len + j] - out[j], 2);
+                }
+            }
+            error *= 1.0/(2.0*out_len*data_len);
+            break;
+
+        default:
+            fprintf(stderr, "[ERROR]: Invalid loss function.\n");
+            exit(1);
+    }
+
+    fprintf(fp, "%zu %f\n", epoch, error);
+    fflush(fp); /* TODO: Maybe it's not a good idea... */
+}
+
+/* ================================================================= */
 
 
 /* ============== Activation functions and derivative ============== */
@@ -230,23 +300,6 @@ static float tanh_derivative(float x_tanh) {
 /* ================================================================= */
 
 
-
-/* ===================== Forward declarations ====================== */
-
-static void nn_feed_forward(NN *nn, const float *x);
-
-static void backpropagation(
-    const NN *nn,
-    size_t batch_i,
-    const float *y_train,
-    float *deltas,
-    size_t deltas_len,
-    float *gradient_acc,
-    float *scratchpad,
-    enum Loss_function loss
-);
-
-/* ================================================================= */
 
 NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, const enum Activation *units_activation, enum Weight_initialization w_init) {
     NN *nn = nn_malloc(sizeof(NN));
@@ -419,7 +472,7 @@ static void nn_feed_forward(NN *nn, const float *x) {
     }
 }
 
-void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const NN_train_opt *opt) {
+void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len, const float *x_test, const float* y_test, size_t test_len, const NN_train_opt *opt) {
     if (opt->batch_size < 1 || opt->batch_size > train_len) {
         fprintf(stderr, "[ERROR]: mini_batch_size has to be in interval [1..train_len].\n");
         exit(1);
@@ -467,15 +520,14 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         train_indexes[i] = i;
     }
 
-    /* Getting output from intermediate activation */
-    const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
-    const size_t out_index = nn->intermediate_activations_len - out_len;
-    const float *out = nn->intermediate_activations + out_index;
-
     /* If logging is enabled, print some informations on the top of the file */
-    if (opt->log_fp != NULL) {
-        fprintf(opt->log_fp, "# COL INFOS: x:(epoch) y:(loss)\n");
-        fflush(opt->log_fp);
+    if (opt->loss_log_train_fp != NULL) {
+        fprintf(opt->loss_log_train_fp, "# COL INFOS: x:(epoch) y:(loss)\n");
+        fflush(opt->loss_log_train_fp);
+    }
+    if (opt->loss_log_test_fp != NULL) {
+        fprintf(opt->loss_log_test_fp, "# COL INFOS: x:(epoch) y:(loss)\n");
+        fflush(opt->loss_log_test_fp);
     }
 
 
@@ -488,52 +540,15 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     for (size_t epoch = 0; epoch < opt->epoch_num; ++epoch) {
 
         /*
-        *  (If error log is enabled)
+        *  (If loss log is enabled)
         *  Compute the error (using the selected loss function)
         *  and write it in the log.
         */
-        if (opt->log_fp != NULL) {
-            float error = 0.0;
-
-            switch(opt->loss) {
-                case NN_CROSS_ENTROPY:
-                    for (size_t i = 0; i < train_len; ++i) {
-                        nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
-                        float error_i = 0.0;
-
-                        /* If the nn has a single output we need to use this slightly different formula */
-                        if (out_len == 1) {
-                            error_i = y_train[i*out_len] * logf(out[0]) + (1 - y_train[i*out_len]) * logf(1 - out[0]);
-                        } else {
-                            for (size_t j = 0; j < out_len; ++j) {
-                                error_i += y_train[i*out_len + j] * logf(out[j]);
-                            }
-                        }
-
-                        error_i *= -1;
-                        error += error_i;
-                    }
-                    error *= 1.0/(train_len);
-                    break;
-
-                case NN_MSE:
-                    for (size_t i = 0; i < train_len; ++i) {
-                        nn_feed_forward(nn, x_train + i*nn->units_configuration[0]);
-
-                        for (size_t j = 0; j < out_len; ++j) {
-                            error += powf(y_train[i*out_len + j] - out[j], 2);
-                        }
-                    }
-                    error *= 1.0/(2.0*out_len*train_len);
-                    break;
-
-                default:
-                    fprintf(stderr, "[ERROR]: Invalid loss function.\n");
-                    exit(1);
-            }
-
-            fprintf(opt->log_fp, "%zu %f\n", epoch, error);
-            fflush(opt->log_fp); /* TODO: Maybe it's not a good idea... */
+        if (opt->loss_log_train_fp != NULL) {
+            loss_log(nn, opt->loss_log_train_fp, epoch, opt->loss, x_train, y_train, train_len);
+        }
+        if (opt->loss_log_test_fp != NULL) {
+            loss_log(nn, opt->loss_log_test_fp, epoch, opt->loss, x_test, y_test, test_len);
         }
 
         /* Shuffle train_indexes using Fisher–Yates shuffle algorithm (only if isn't used Batch GD) */
