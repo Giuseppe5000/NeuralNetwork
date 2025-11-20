@@ -7,6 +7,7 @@ FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
 
 #define ARRAY_LEN(x) sizeof(x)/sizeof(x[0])
+#define CLASS_NUM 10
 
 /*
 * Transoform the input number (in big endian) into a little endian number.
@@ -70,12 +71,17 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
     printf("Third byte: 0x%02X\n", magic_num_bytes[2]);
     printf("Fourth byte: 0x%02X\n\n", magic_num_bytes[3]);
 
-    if (magic_num_bytes[2] != 0x08) {
+    if (magic_num_bytes[0] != 0 || magic_num_bytes[1] != 0) {
+        fprintf(stderr, "[ERROR]: Expected 0 as the first two bytes of magic number!\n");
+        exit(1);
+    }
+
+    if (magic_num_bytes[2] != 8) {
         fprintf(stderr, "[ERROR]: Expected unsigned byte (0x08) data type!\n");
         exit(1);
     }
 
-    if (magic_num_bytes[3] != 0x03) {
+    if (magic_num_bytes[3] != 3) {
         fprintf(stderr, "[ERROR]: Expected 3 dimensions!\n");
         exit(1);
     }
@@ -102,11 +108,74 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 
     for (size_t i = 0; i < data_size; ++i) {
         data_float[i] = (float) data[i] / 255.0;
-        printf("data[%zu] = %f\n", i, data_float[i]);
     }
 
     free(data);
     return data_float;
+}
+
+/*
+* Like 'read_mnist_images' but for the labels.
+*/
+float *read_mnist_labels(const char *path, size_t *labels_len) {
+    FILE *fp = fopen(path, "rb");
+
+    if (fp == NULL) {
+        fprintf(stderr, "[ERROR]: Cannot open %s\n", path);
+        exit(1);
+    }
+
+    /* Magic number */
+    uint32_t magic_number = 0;
+    fread(&magic_number, sizeof(uint32_t), 1, fp);
+    const uint8_t *magic_num_bytes = (uint8_t*) &magic_number;
+
+    printf("Magic number:\n");
+    printf("First byte: 0x%02X\n", magic_num_bytes[0]);
+    printf("Second byte: 0x%02X\n", magic_num_bytes[1]);
+    printf("Third byte: 0x%02X\n", magic_num_bytes[2]);
+    printf("Fourth byte: 0x%02X\n\n", magic_num_bytes[3]);
+
+    if (magic_num_bytes[0] != 0 || magic_num_bytes[1] != 0) {
+        fprintf(stderr, "[ERROR]: Expected 0 as the first two bytes of magic number!\n");
+        exit(1);
+    }
+
+    if (magic_num_bytes[2] != 8) {
+        fprintf(stderr, "[ERROR]: Expected unsigned byte (0x08) data type!\n");
+        exit(1);
+    }
+
+    if (magic_num_bytes[3] != 1) {
+        fprintf(stderr, "[ERROR]: Expected 1 dimension!\n");
+        exit(1);
+    }
+
+    /* Dimensions */
+    uint32_t dimension = 0;
+    fread(&dimension, sizeof(uint32_t), 1, fp);
+    dimension = to_little_endian(dimension);
+    *labels_len = dimension;
+
+    /* Data */
+    uint8_t *data = malloc(sizeof(uint8_t) * (*labels_len));
+    fread(data, sizeof(uint8_t), (*labels_len), fp);
+    fclose(fp);
+
+    /*
+    * Each element of data is a number in [0,9],
+    * but the train need it in one-hot format.
+    */
+    float *data_one_hot = calloc((*labels_len) * CLASS_NUM, sizeof(float));
+
+    for (size_t i = 0; i < (*labels_len); ++i) {
+        uint8_t label = data[i];
+        data_one_hot[i*CLASS_NUM + label] = 1.0;
+    }
+
+    free(data);
+
+    return data_one_hot;
 }
 
 int main(void) {
@@ -119,7 +188,7 @@ int main(void) {
     float *train_imgs = read_mnist_images(images_file_path, &train_imgs_len, &image_size);
 
     size_t train_labels_len = 0;
-    // float *train_labels = read_mnist_labels(labels_file_path, &train_labels_len);
+    float *train_labels = read_mnist_labels(labels_file_path, &train_labels_len);
 
     /* Network init */
     // size_t units_configuration[] = {image_size, ............ 10};
@@ -145,7 +214,7 @@ int main(void) {
     // nn_free(nn);
     // fclose(fp);
     free(train_imgs);
-    // free(train_labels);
+    free(train_labels);
 
     /* Plotting */
     // FILE* gnuplotPipe = popen("gnuplot -persistent", "w");
