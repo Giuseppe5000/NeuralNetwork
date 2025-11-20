@@ -23,3 +23,9 @@ And you'll find all the examples executables in the ```build_examples``` directo
 ## Requirements
 - Any C99-compatible compiler.
 - Gnuplot, only needed for examples chart view (the example works anyway, logging the train data into a file).
+
+## TODO
+- [ ] Maybe it is better to have only one single file with train and test loss.
+- [ ] There are some warnings regarding fread.
+- [ ] Add the image of mnist loss in the readme.
+- [ ] Tell in the readme that the makefile expects that wget and gunzip are installed.
