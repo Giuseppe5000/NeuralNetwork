@@ -27,5 +27,6 @@ And you'll find all the examples executables in the ```build_examples``` directo
 
 ## MNIST example
 The ```mnist.c``` example train the neural network with the MNIST dataset, the results are not bad (train loss ~= 0.05, test loss ~= 0.08 with the configuration specified in ```opt```).\
-Obviously the training is much slow, because all the the computation uses only the cpu, so I leave here the training chard if you don't want to wait:
+Obviously the training is much slow, because all the the computation uses only the cpu, so I leave here the training chart if you don't want to wait:
+
 ![MNIST Loss chart](./mnist_train_pic.svg "MNIST Loss chart")
