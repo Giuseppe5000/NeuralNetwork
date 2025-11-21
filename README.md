@@ -26,6 +26,6 @@ And you'll find all the examples executables in the ```build_examples``` directo
 
 ## TODO
 - [x] Maybe it is better to have only one single file with train and test loss.
-- [ ] There are some warnings regarding fread.
+- [x] There are some warnings regarding fread.
 - [ ] Add the image of mnist loss in the readme.
 - [ ] Tell in the readme that the makefile expects that wget and gunzip are installed.

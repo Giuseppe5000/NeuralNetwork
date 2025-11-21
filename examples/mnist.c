@@ -63,13 +63,12 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 
     /* Magic number */
     uint8_t magic_number[4] = {0};
-    fread(magic_number, sizeof(uint8_t), 4, fp);
+    size_t bytes_read = fread(magic_number, sizeof(uint8_t), 4, fp);
 
-    printf("Magic number:\n");
-    printf("First byte: 0x%02X\n", magic_number[0]);
-    printf("Second byte: 0x%02X\n", magic_number[1]);
-    printf("Third byte: 0x%02X\n", magic_number[2]);
-    printf("Fourth byte: 0x%02X\n\n", magic_number[3]);
+    if (bytes_read != 4) {
+        fprintf(stderr, "[ERROR]: Expected 4 bytes!\n");
+        exit(1);
+    }
 
     if (magic_number[0] != 0 || magic_number[1] != 0) {
         fprintf(stderr, "[ERROR]: Expected 0 as the first two bytes of magic number!\n");
@@ -88,7 +87,12 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 
     /* Dimensions */
     uint32_t dimensions[3] = {0};
-    fread(dimensions, sizeof(uint32_t), 3, fp);
+    bytes_read = fread(dimensions, sizeof(uint32_t), 3, fp);
+
+    if (bytes_read != 3*sizeof(uint32_t)) {
+        fprintf(stderr, "[ERROR]: Expected %zu bytes!\n", 3*sizeof(uint32_t));
+        exit(1);
+    }
 
     for (size_t i = 0; i < 3; ++i) {
         dimensions[i] = to_little_endian(dimensions[i]);
@@ -100,7 +104,13 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
     /* Data */
     const size_t data_size = (*img_size) * (*img_len);
     uint8_t *data = malloc(sizeof(uint8_t) * data_size);
-    fread(data, sizeof(uint8_t), data_size, fp);
+    bytes_read = fread(data, sizeof(uint8_t), data_size, fp);
+
+    if (bytes_read != data_size) {
+        fprintf(stderr, "[ERROR]: Expected %zu bytes!\n", data_size);
+        exit(1);
+    }
+
     fclose(fp);
 
     /* Convert data to float (range [0..1]) */
@@ -127,13 +137,12 @@ float *read_mnist_labels(const char *path) {
 
     /* Magic number */
     uint8_t magic_number[4] = {0};
-    fread(magic_number, sizeof(uint8_t), 4, fp);
+    size_t bytes_read = fread(magic_number, sizeof(uint8_t), 4, fp);
 
-    printf("Magic number:\n");
-    printf("First byte: 0x%02X\n", magic_number[0]);
-    printf("Second byte: 0x%02X\n", magic_number[1]);
-    printf("Third byte: 0x%02X\n", magic_number[2]);
-    printf("Fourth byte: 0x%02X\n\n", magic_number[3]);
+    if (bytes_read != 4) {
+        fprintf(stderr, "[ERROR]: Expected 4 bytes!\n");
+        exit(1);
+    }
 
     if (magic_number[0] != 0 || magic_number[1] != 0) {
         fprintf(stderr, "[ERROR]: Expected 0 as the first two bytes of magic number!\n");
@@ -152,12 +161,24 @@ float *read_mnist_labels(const char *path) {
 
     /* Dimensions */
     uint32_t dimension = 0;
-    fread(&dimension, sizeof(uint32_t), 1, fp);
+    bytes_read = fread(&dimension, sizeof(uint32_t), 1, fp);
+
+    if (bytes_read != sizeof(uint32_t)) {
+        fprintf(stderr, "[ERROR]: Expected %zu bytes!\n", sizeof(uint32_t));
+        exit(1);
+    }
+
     dimension = to_little_endian(dimension);
 
     /* Data */
     uint8_t *data = malloc(sizeof(uint8_t) * dimension);
-    fread(data, sizeof(uint8_t), dimension, fp);
+    bytes_read = fread(data, sizeof(uint8_t), dimension, fp);
+
+    if (bytes_read != dimension) {
+        fprintf(stderr, "[ERROR]: Expected %u bytes!\n", dimension);
+        exit(1);
+    }
+
     fclose(fp);
 
     /*
