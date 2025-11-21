@@ -22,10 +22,10 @@ And you'll find all the examples executables in the ```build_examples``` directo
 
 ## Requirements
 - Any C99-compatible compiler.
-- Gnuplot, only needed for examples chart view (the example works anyway, logging the train data into a file).
+- gnuplot, just used for examples chart view (the example works anyway, logging the train data into a file).
+- wget and gunzip command line utils, just used in Makefile for download and uncompress MNIST dataset.
 
-## TODO
-- [x] Maybe it is better to have only one single file with train and test loss.
-- [x] There are some warnings regarding fread.
-- [ ] Add the image of mnist loss in the readme.
-- [ ] Tell in the readme that the makefile expects that wget and gunzip are installed.
+## MNIST example
+The ```mnist.c``` example train the neural network with the MNIST dataset, the results are not bad (train loss ~= 0.05, test loss ~= 0.08 with the configuration specified in ```opt```).\
+Obviously the training is much slow, because all the the computation uses only the cpu, so I leave here the training chard if you don't want to wait:
+![MNIST Loss chart](./mnist_train_pic.svg "MNIST Loss chart")
