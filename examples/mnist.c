@@ -224,7 +224,7 @@ int main(void) {
     FILE *fp = fopen("mnist_loss.txt", "w");
     const NN_train_opt opt = {
         .learning_rate = 0.1,
-        .epochs = 5,
+        .epochs = 70,
         .loss_log_fp = fp,
         .batch_size = 128,
         .loss_type = NN_CROSS_ENTROPY,
