@@ -200,22 +200,19 @@ int main(void) {
     NN *nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
     /* Train */
-    FILE *fp_train = fopen("mnist_train.txt", "w");
-    FILE *fp_test  = fopen("mnist_test.txt", "w");
+    FILE *fp = fopen("mnist_loss.txt", "w");
     const NN_train_opt opt = {
         .learning_rate = 0.1,
-        .epoch_num = 70,
-        .loss_log_train_fp = fp_train,
-        .loss_log_test_fp = fp_test,
+        .epochs = 5,
+        .loss_log_fp = fp,
         .batch_size = 128,
-        .loss = NN_CROSS_ENTROPY,
+        .loss_type = NN_CROSS_ENTROPY,
     };
 
     nn_fit(nn, train_imgs, train_labels, train_imgs_len, test_imgs, test_labels, test_imgs_len, &opt);
 
     /* Memory free */
-    fclose(fp_train);
-    fclose(fp_test);
+    fclose(fp);
     free(train_imgs);
     free(train_labels);
     free(test_imgs);
@@ -227,8 +224,8 @@ int main(void) {
     fprintf(gnuplotPipe, "set grid \n");
     fprintf(gnuplotPipe, "set xlabel \"Epochs\" \n");
     fprintf(gnuplotPipe, "set ylabel \"Loss\" \n");
-    fprintf(gnuplotPipe, "plot '%s' using 1:2 with lines title 'Train loss' linecolo rgb \"blue\", \\ ", "mnist_train.txt");
-    fprintf(gnuplotPipe, "'%s' using 1:2 with lines title 'Test loss' linecolo rgb \"red\" \n", "mnist_test.txt");
+    fprintf(gnuplotPipe, "plot '%s' using 1:2 with lines title 'Train loss' lc rgb \"blue\", ", "mnist_loss.txt");
+    fprintf(gnuplotPipe, "'%s' using 1:3 with lines title 'Test loss' lc rgb \"red\" \n", "mnist_loss.txt");
     pclose(gnuplotPipe);
 
     return 0;

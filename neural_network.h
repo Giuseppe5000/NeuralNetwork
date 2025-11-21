@@ -25,17 +25,16 @@ enum Loss_function {
 
 typedef struct {
     float learning_rate;
-    size_t epoch_num; /* Number of training epochs */
+    size_t epochs; /* Number of training epochs */
 
     /*
      *  FILE pointer where the loss through the epochs will be logged.
      *  If == 'NULL' no log occurs.
      *
-     * The output files then can be plotted on gnuplot (and similar)
+     * The output file then can be plotted on gnuplot (and similar)
      * (see the examples).
      */
-     FILE* loss_log_train_fp;
-     FILE* loss_log_test_fp;
+     FILE* loss_log_fp;
 
     /*
      *  How many training samples use at once for gradients update.
@@ -47,7 +46,7 @@ typedef struct {
      */
      size_t batch_size;
 
-     enum Loss_function loss;
+     enum Loss_function loss_type;
 } NN_train_opt;
 
 /*

@@ -39,14 +39,13 @@ int main(void) {
 
     const NN_train_opt opt = {
         .learning_rate = 2,
-        .epoch_num = 1500,
-        .loss_log_train_fp = fp,
-        .loss_log_test_fp = NULL,
+        .epochs = 1500,
+        .loss_log_fp = fp,
         .batch_size = 4,
-        .loss = NN_CROSS_ENTROPY
+        .loss_type = NN_CROSS_ENTROPY
     };
 
-    nn_fit(nn, x_train, y_train, train_len, NULL, NULL, 0, &opt);
+    nn_fit(nn, x_train, y_train, train_len, x_train, y_train, train_len, &opt);
 
     /* Test */
     float out[1];
