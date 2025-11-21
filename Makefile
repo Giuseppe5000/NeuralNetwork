@@ -35,3 +35,4 @@ t10k-labels-idx1-ubyte:
 clean:
 	rm -rf $(BUILD_DIR)
 	rm *-ubyte
+	rm *.txt
