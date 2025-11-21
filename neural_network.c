@@ -177,7 +177,7 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
 }
 
 /*
-*  Computes the loss of the epoch 'epoch' using the selected loss function ('loss')
+*  Computes the loss using the selected loss function ('loss')
 *  and using the data in 'x_data' and 'y_data' of length 'data_len'.
 *  The computed loss will be printed into 'fp'.
 */
