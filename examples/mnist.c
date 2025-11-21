@@ -63,9 +63,9 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 
     /* Magic number */
     uint8_t magic_number[4] = {0};
-    size_t bytes_read = fread(magic_number, sizeof(uint8_t), 4, fp);
+    size_t items_read = fread(magic_number, sizeof(uint8_t), 4, fp);
 
-    if (bytes_read != 4) {
+    if (items_read != 4) {
         fprintf(stderr, "[ERROR]: Expected 4 bytes!\n");
         exit(1);
     }
@@ -87,10 +87,10 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 
     /* Dimensions */
     uint32_t dimensions[3] = {0};
-    bytes_read = fread(dimensions, sizeof(uint32_t), 3, fp);
+    items_read = fread(dimensions, sizeof(uint32_t), 3, fp);
 
-    if (bytes_read != 3*sizeof(uint32_t)) {
-        fprintf(stderr, "[ERROR]: Expected %zu bytes!\n", 3*sizeof(uint32_t));
+    if (items_read != 3) {
+        fprintf(stderr, "[ERROR]: Expected 3 dimensions!\n");
         exit(1);
     }
 
@@ -104,9 +104,9 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
     /* Data */
     const size_t data_size = (*img_size) * (*img_len);
     uint8_t *data = malloc(sizeof(uint8_t) * data_size);
-    bytes_read = fread(data, sizeof(uint8_t), data_size, fp);
+    items_read = fread(data, sizeof(uint8_t), data_size, fp);
 
-    if (bytes_read != data_size) {
+    if (items_read != data_size) {
         fprintf(stderr, "[ERROR]: Expected %zu bytes!\n", data_size);
         exit(1);
     }
@@ -137,9 +137,9 @@ float *read_mnist_labels(const char *path) {
 
     /* Magic number */
     uint8_t magic_number[4] = {0};
-    size_t bytes_read = fread(magic_number, sizeof(uint8_t), 4, fp);
+    size_t items_read = fread(magic_number, sizeof(uint8_t), 4, fp);
 
-    if (bytes_read != 4) {
+    if (items_read != 4) {
         fprintf(stderr, "[ERROR]: Expected 4 bytes!\n");
         exit(1);
     }
@@ -161,10 +161,10 @@ float *read_mnist_labels(const char *path) {
 
     /* Dimensions */
     uint32_t dimension = 0;
-    bytes_read = fread(&dimension, sizeof(uint32_t), 1, fp);
+    items_read = fread(&dimension, sizeof(uint32_t), 1, fp);
 
-    if (bytes_read != sizeof(uint32_t)) {
-        fprintf(stderr, "[ERROR]: Expected %zu bytes!\n", sizeof(uint32_t));
+    if (items_read != 1) {
+        fprintf(stderr, "[ERROR]: Expected 1 dimension!\n");
         exit(1);
     }
 
@@ -172,9 +172,9 @@ float *read_mnist_labels(const char *path) {
 
     /* Data */
     uint8_t *data = malloc(sizeof(uint8_t) * dimension);
-    bytes_read = fread(data, sizeof(uint8_t), dimension, fp);
+    items_read = fread(data, sizeof(uint8_t), dimension, fp);
 
-    if (bytes_read != dimension) {
+    if (items_read != dimension) {
         fprintf(stderr, "[ERROR]: Expected %u bytes!\n", dimension);
         exit(1);
     }
