@@ -260,7 +260,7 @@ static void tanh_vec(float *x, float *out, size_t len) {
 static void softmax(float *x, float *out, size_t len) {
 
     /* Get the max of 'x' */
-    float max = -INFINITY;
+    float max = -FLT_MAX;
     for (size_t i = 0; i < len; ++i) {
         if (x[i] > max) max = x[i];
     }
