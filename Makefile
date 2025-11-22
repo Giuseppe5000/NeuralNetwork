@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -std=c99 -Werror=vla -Ofast -march=native -ffast-math
+CFLAGS = -Wall -Wextra -pedantic -std=c99 -Werror=vla -O3 -march=native -ffast-math
 LIBS= -lm
 SRC_DIR = examples
 BUILD_DIR = build_examples
