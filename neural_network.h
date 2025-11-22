@@ -31,8 +31,8 @@ typedef struct {
      *  FILE pointer where the loss through the epochs will be logged.
      *  If == 'NULL' no log occurs.
      *
-     * The output file then can be plotted on gnuplot (and similar)
-     * (see the examples).
+     *  The output file then can be plotted on gnuplot (and similar)
+     *  (see the examples).
      */
      FILE* loss_log_fp;
 

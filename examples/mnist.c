@@ -9,9 +9,7 @@ int pclose(FILE *stream);
 #define ARRAY_LEN(x) sizeof(x)/sizeof(x[0])
 #define CLASS_NUM 10
 
-/*
-* Transoform the input number (in big endian) into a little endian number.
-*/
+/* Transforms the input number (in big endian) into a little endian number. */
 uint32_t to_little_endian(uint32_t big_endian_num) {
     uint8_t b1, b2, b3, b4;
 
@@ -24,34 +22,34 @@ uint32_t to_little_endian(uint32_t big_endian_num) {
 }
 
 /*
-* Read the image data from the IDX file returning the pointer to the float data.
-* It also fill 'img_len' with the number of images and 'img_size' with the byte size of one image.
+*  Read the image data from the IDX file returning the pointer to the float data.
+*  It also fill 'img_len' with the number of images and 'img_size' with the byte size of one image.
 *
-* (https://github.com/cvdfoundation/mnist?tab=readme-ov-file#file-format)
-* IDX format is a simple format for vectors and multidimensional matrices of various numerical types.
-* The basic format is:
-* ---------------------------
-*  magic number
-*  size in dimension 0
-*  size in dimension 1
-*  size in dimension 2
-*  .....
-*  size in dimension N
-*  data
-* ---------------------------
+*  (https://github.com/cvdfoundation/mnist?tab=readme-ov-file#file-format)
+*  IDX format is a simple format for vectors and multidimensional matrices of various numerical types.
+*  The basic format is:
+*  ---------------------------
+*   magic number
+*   size in dimension 0
+*   size in dimension 1
+*   size in dimension 2
+*   .....
+*   size in dimension N
+*   data
+*  ---------------------------
 *
-* The magic number is an integer (big endian / MSB).
-* The first 2 bytes are always 0.
-* The third byte codes the type of the data:
-* ---------------------------
-*  0x08: unsigned byte
-*  0x09: signed byte
-*  0x0B: short (2 bytes)
-*  0x0C: int (4 bytes)
-*  0x0D: float (4 bytes)
-*  0x0E: double (8 bytes)
-* ---------------------------
-* The 4-th byte codes the number of dimensions of the vector/matrix: 1 for vectors, 2 for matrices...
+*  The magic number is an integer (big endian / MSB).
+*  The first 2 bytes are always 0.
+*  The third byte codes the type of the data:
+*  ---------------------------
+*   0x08: unsigned byte
+*   0x09: signed byte
+*   0x0B: short (2 bytes)
+*   0x0C: int (4 bytes)
+*   0x0D: float (4 bytes)
+*   0x0E: double (8 bytes)
+*  ---------------------------
+*  The 4-th byte codes the number of dimensions of the vector/matrix: 1 for vectors, 2 for matrices...
 */
 float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
     FILE *fp = fopen(path, "rb");
@@ -125,7 +123,7 @@ float *read_mnist_images(const char *path, size_t *img_len, size_t *img_size) {
 }
 
 /*
-* Like 'read_mnist_images' but for the labels.
+*  Like 'read_mnist_images' but for the labels.
 */
 float *read_mnist_labels(const char *path) {
     FILE *fp = fopen(path, "rb");
@@ -182,8 +180,8 @@ float *read_mnist_labels(const char *path) {
     fclose(fp);
 
     /*
-    * Each element of data is a number in [0,9],
-    * but the train need it in one-hot format.
+    *  Each element of data is a number in [0,9],
+    *  but the train need it in one-hot format.
     */
     float *data_one_hot = calloc(dimension * CLASS_NUM, sizeof(float));
 
@@ -199,10 +197,10 @@ float *read_mnist_labels(const char *path) {
 
 int main(void) {
     /* Reading training and test data */
-    const char *images_file_path = "train-images-idx3-ubyte";
-    const char *labels_file_path = "train-labels-idx1-ubyte";
-    const char *images_test_file_path = "t10k-images-idx3-ubyte";
-    const char *labels_test_file_path = "t10k-labels-idx1-ubyte";
+    const char *images_file_path = "build_examples/train-images-idx3-ubyte";
+    const char *labels_file_path = "build_examples/train-labels-idx1-ubyte";
+    const char *images_test_file_path = "build_examples/t10k-images-idx3-ubyte";
+    const char *labels_test_file_path = "build_examples/t10k-labels-idx1-ubyte";
 
     size_t train_imgs_len = 0;
     size_t image_size = 0;
