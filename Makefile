@@ -12,7 +12,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%: $(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) neural_network.c $< -o $@ $(LIBS) $(CFLAGS)
+	$(CC) src/neural_network.c $< -o $@ $(LIBS) $(CFLAGS)
 
 mnist_dataset: $(BUILD_DIR)/train-images-idx3-ubyte $(BUILD_DIR)/train-labels-idx1-ubyte $(BUILD_DIR)/t10k-images-idx3-ubyte $(BUILD_DIR)/t10k-labels-idx1-ubyte
 

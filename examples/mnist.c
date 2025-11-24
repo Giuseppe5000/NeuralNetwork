@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include "../neural_network.h"
+#include "../include/neural_network.h"
 
 FILE *popen(const char *command, const char *type);
 int pclose(FILE *stream);
