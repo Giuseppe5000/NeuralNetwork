@@ -34,7 +34,7 @@ typedef struct {
      *  The output file then can be plotted on gnuplot (and similar)
      *  (see the examples).
      */
-     FILE* loss_log_fp;
+     FILE *loss_log_fp;
 
     /*
      *  How many training samples use at once for gradients update.

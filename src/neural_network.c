@@ -181,7 +181,7 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
 *  and using the data in 'x_data' and 'y_data' of length 'data_len'.
 *  The computed loss will be printed into 'fp'.
 */
-static void loss_log(NN* nn, FILE *fp, enum Loss_function loss_type, const float *x_data, const float *y_data, size_t data_len) {
+static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float *x_data, const float *y_data, size_t data_len) {
     /* Getting output from intermediate activation */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     const size_t out_index = nn->intermediate_activations_len - out_len;

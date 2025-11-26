@@ -11,7 +11,7 @@ int main(void) {
     enum Activation units_activation[] = {NN_SIGMOID, NN_SIGMOID};
     size_t units_configuration_len = ARRAY_LEN(units_configuration);
 
-    NN * nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
+    NN *nn = nn_init(units_configuration, units_configuration_len, units_activation, NN_GLOROT);
 
     /* Train data */
     const float x_train[] = {
@@ -31,7 +31,7 @@ int main(void) {
 
     /* Train */
     const char *file_path = "xor_train.txt";
-    FILE* fp = fopen(file_path, "w");
+    FILE *fp = fopen(file_path, "w");
     if (fp == NULL) {
         fprintf(stderr, "[ERROR]: Cannot open file %s\n", file_path);
         return 1;
@@ -60,7 +60,7 @@ int main(void) {
     fclose(fp);
 
     /* Plotting */
-    FILE* gnuplotPipe = popen("gnuplot -persistent", "w");
+    FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
     fprintf(gnuplotPipe, "set grid \n");
     fprintf(gnuplotPipe, "set xlabel \"Epochs\" \n");
     fprintf(gnuplotPipe, "set ylabel \"Loss\" \n");
