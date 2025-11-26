@@ -1,5 +1,6 @@
 /* Reference: https://github.com/NVIDIA/CUDALibrarySamples/blob/main/cuBLAS/Level-3/gemm/cublas_gemm_example.cu */
 
+#include "nn_cuda.h"
 #include <stdio.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -25,33 +26,29 @@
     } while (0)
 
 extern "C" {
-    void cuda_init(cublasHandle_t cublasH, cudaStream_t stream) {
+    void nn_cuda_init(NN_CUDA_ctx *ctx) {
         /* Create cublas handle, bind a stream */
-        CUBLAS_CHECK(cublasCreate(&cublasH));
-        CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
-        CUBLAS_CHECK(cublasSetStream(cublasH, stream));
+        CUBLAS_CHECK(cublasCreate(&ctx->cublasH));
+        CUDA_CHECK(cudaStreamCreateWithFlags(&ctx->stream, cudaStreamNonBlocking));
+        CUBLAS_CHECK(cublasSetStream(ctx->cublasH, ctx->stream));
     }
 
-    void cuda_destroy(cublasHandle_t cublasH, cudaStream_t stream) {
-        CUBLAS_CHECK(cublasDestroy(cublasH));
-        CUDA_CHECK(cudaStreamDestroy(stream));
+    void nn_cuda_destroy(NN_CUDA_ctx *ctx) {
+        CUBLAS_CHECK(cublasDestroy(ctx->cublasH));
+        CUDA_CHECK(cudaStreamDestroy(ctx->stream));
         CUDA_CHECK(cudaDeviceReset());
     }
 
-    void cuda_alloc(size_t size, float *d) {
-        CUDA_CHECK(cudaMalloc((void **)(&d), sizeof(float) * size));
+    void nn_cuda_alloc(size_t size, float **d) {
+        CUDA_CHECK(cudaMalloc(d, sizeof(float) * size));
     }
 
-    void cuda_free(float *d) {
+    void nn_cuda_free(float *d) {
         CUDA_CHECK(cudaFree(d));
     }
 
-    void cuda_matmul(cublasHandle_t cublasH, cudaStream_t stream, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C, bool transpose_B) {
+    void nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C, bool transpose_B) {
         size_t C_rows = A_rows;
-        // size_t C_cols = B_cols;
-        // if (transpose_B) {
-        //     C_cols = B_rows;
-        // }
 
         const int m = A_rows;
         int n = B_cols;
@@ -72,16 +69,9 @@ extern "C" {
             transb = CUBLAS_OP_T;
         }
 
-        /* Copy data to device */
-        // CUDA_CHECK(cudaMemcpyAsync(d_A, A, sizeof(float) * A_rows * A_cols, cudaMemcpyHostToDevice, stream));
-        // CUDA_CHECK(cudaMemcpyAsync(d_B, B, sizeof(float) * B_rows * B_cols, cudaMemcpyHostToDevice, stream));
-
         /* Compute */
-        CUBLAS_CHECK(cublasSgemm(cublasH, transa, transb, m, n, k, &alpha, A, lda, B, ldb, &beta, C, ldc));
+        CUBLAS_CHECK(cublasSgemm(ctx->cublasH, transa, transb, m, n, k, &alpha, A, lda, B, ldb, &beta, C, ldc));
 
-        /* Copy data to host */
-        // CUDA_CHECK(cudaMemcpyAsync(C, d_C, sizeof(float) * C_rows * C_cols, cudaMemcpyDeviceToHost, stream));
-
-        CUDA_CHECK(cudaStreamSynchronize(stream));
+        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
     }
 }

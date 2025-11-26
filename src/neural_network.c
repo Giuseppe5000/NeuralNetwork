@@ -1,4 +1,5 @@
 #include "../include/neural_network.h"
+#include "nn_cuda.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>

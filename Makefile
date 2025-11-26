@@ -11,11 +11,11 @@ all: $(BUILD_DIR) $(EXECUTABLES) mnist_dataset
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(BUILD_DIR)/%: $(SRC_DIR)/%.c cuda.o | $(BUILD_DIR)
-	$(CC) src/neural_network.c $(BUILD_DIR)/cuda.o $< -o $@ $(LIBS) $(CFLAGS)
+$(BUILD_DIR)/%: $(SRC_DIR)/%.c nn_cuda.o | $(BUILD_DIR)
+	$(CC) src/neural_network.c $(BUILD_DIR)/nn_cuda.o $< -o $@ $(LIBS) $(CFLAGS)
 
-cuda.o: src/cuda.cu
-	nvcc -c src/cuda.cu -o $(BUILD_DIR)/cuda.o
+nn_cuda.o: src/nn_cuda.cu
+	nvcc -c src/nn_cuda.cu -o $(BUILD_DIR)/nn_cuda.o
 
 mnist_dataset: $(BUILD_DIR)/train-images-idx3-ubyte $(BUILD_DIR)/train-labels-idx1-ubyte $(BUILD_DIR)/t10k-images-idx3-ubyte $(BUILD_DIR)/t10k-labels-idx1-ubyte
 
