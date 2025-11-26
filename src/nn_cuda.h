@@ -18,7 +18,7 @@ void nn_cuda_init(NN_CUDA_ctx *ctx);
 
 void nn_cuda_destroy(NN_CUDA_ctx *ctx);
 
-void nn_cuda_alloc(size_t size, float **d);
+void nn_cuda_malloc(size_t size, float **d);
 
 void nn_cuda_free(float *d);
 

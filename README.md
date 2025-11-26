@@ -49,3 +49,6 @@ Obviously the training is much slow, because all the the computation uses only t
 So I leave here the training chart if you don't want to wait:
 
 ![MNIST Loss chart](./mnist_train_pic.svg "MNIST Loss chart")
+
+## TODO
+- [ ] Cannot access directly the weight for the initialization, because now they are in the gpu memory. So I need a kernel for the init (I think).

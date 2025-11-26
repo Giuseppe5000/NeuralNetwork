@@ -39,7 +39,7 @@ extern "C" {
         CUDA_CHECK(cudaDeviceReset());
     }
 
-    void nn_cuda_alloc(size_t size, float **d) {
+    void nn_cuda_malloc(size_t size, float **d) {
         CUDA_CHECK(cudaMalloc(d, sizeof(float) * size));
     }
 

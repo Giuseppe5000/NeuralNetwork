@@ -6,7 +6,7 @@ int main(void) {
     nn_cuda_init(&ctx);
 
     float *p = NULL;
-    nn_cuda_alloc(10, &p);
+    nn_cuda_malloc(10, &p);
     if (p == NULL) {
         fprintf(stderr, "[ERROR]: Out of memory");
     } else {

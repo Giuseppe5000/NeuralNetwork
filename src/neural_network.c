@@ -304,6 +304,10 @@ static float tanh_derivative(float x_tanh) {
 NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, const enum Activation *units_activation, enum Weight_initialization w_init) {
     NN *nn = nn_malloc(sizeof(NN));
 
+    /* CUDA init */
+    NN_CUDA_ctx ctx = {0};
+    nn_cuda_init(&ctx);
+
     /* Copy units_configuration into the struct */
     nn->units_configuration = nn_malloc(units_configuration_len * sizeof(size_t));
     nn->units_configuration_len = units_configuration_len;
@@ -319,7 +323,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
         */
         nn->weights_len += (units_configuration[i] * units_configuration[i+1]) + units_configuration[i+1];
     }
-    nn->weights = nn_malloc(nn->weights_len * sizeof(float));
+    nn_cuda_malloc(nn->weights_len * sizeof(float), &nn->weights);
 
     nn->layers_len = units_configuration_len - 1;
     nn->layers = nn_malloc(nn->layers_len * sizeof(float *));
@@ -393,7 +397,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
     }
     nn->intermediate_activations_len--; /* Last layer doesn't have bias */
 
-    nn->intermediate_activations = nn_malloc(nn->intermediate_activations_len * sizeof(float));
+    nn_cuda_malloc(nn->intermediate_activations_len * sizeof(float), &nn->intermediate_activations);
 
     return nn;
 }
