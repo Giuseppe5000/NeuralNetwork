@@ -45,6 +45,7 @@ int main(void) {
         .loss_type = NN_CROSS_ENTROPY
     };
 
+    /* For this simple example 'test data = training data', in fact we have only 4 samples */
     nn_fit(nn, x_train, y_train, train_len, x_train, y_train, train_len, &opt);
 
     /* Test */
@@ -63,7 +64,7 @@ int main(void) {
     fprintf(gnuplotPipe, "set grid \n");
     fprintf(gnuplotPipe, "set xlabel \"Epochs\" \n");
     fprintf(gnuplotPipe, "set ylabel \"Loss\" \n");
-    fprintf(gnuplotPipe, "plot '%s' lc rgb \"black\" \n", "xor_train.txt");
+    fprintf(gnuplotPipe, "plot '%s' with lines title 'Train loss' lc rgb \"blue\" \n", "xor_train.txt");
     pclose(gnuplotPipe);
 
     return 0;
