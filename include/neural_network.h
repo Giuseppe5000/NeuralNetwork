@@ -1,5 +1,5 @@
-#ifndef NEURAL_NETWORK
-#define NEURAL_NETWORK
+#ifndef NEURAL_NETWORK_H
+#define NEURAL_NETWORK_H
 
 #include <stdio.h>
 
@@ -120,4 +120,4 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
 */
 void nn_predict(NN *nn, const float *x, float *out);
 
-#endif /* NEURAL_NETWORK */
+#endif /* NEURAL_NETWORK_H */
