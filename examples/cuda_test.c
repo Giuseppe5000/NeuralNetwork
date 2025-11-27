@@ -2,8 +2,7 @@
 #include "../src/nn_cuda.h"
 
 int main(void) {
-    NN_CUDA_ctx ctx = {0};
-    nn_cuda_init(&ctx);
+    NN_CUDA_ctx *ctx = nn_cuda_init();
 
     float *p = NULL;
     nn_cuda_malloc(10, &p);
@@ -14,6 +13,6 @@ int main(void) {
     }
     nn_cuda_free(p);
 
-    nn_cuda_destroy(&ctx);
+    nn_cuda_destroy(ctx);
     return 0;
 }
