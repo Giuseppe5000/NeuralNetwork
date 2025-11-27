@@ -51,4 +51,5 @@ So I leave here the training chart if you don't want to wait:
 ![MNIST Loss chart](./mnist_train_pic.svg "MNIST Loss chart")
 
 ## TODO
-- [ ] Cannot access directly the weight for the initialization, because now they are in the gpu memory. So I need a kernel for the init (I think).
+- [x] Cannot access directly the weight for the initialization, because now they are in the gpu memory. So I need a kernel for the init (I think).
+- [ ] Need a way to apply the activation functions in the feed forward.

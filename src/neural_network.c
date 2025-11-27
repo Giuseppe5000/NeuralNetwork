@@ -375,7 +375,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
         }
 
         /* Copy current initialized layer to the gpu */
-        nn_cuda_memcpy(nn->ctx, nn->layers[i], nn->scratchpad, layer_size);
+        nn_cuda_memcpy_to_device(nn->ctx, nn->layers[i], nn->scratchpad, layer_size*sizeof(float));
     }
 
     /* Activation functions initialize */
@@ -441,7 +441,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
     /* Copy the output, which is stored in the last elements of intermediate activations into 'out' */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     const size_t out_index = nn->intermediate_activations_len - out_len;
-    memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
+    nn_cuda_memcpy_to_host(nn->ctx, out, nn->intermediate_activations + out_index, out_len*sizeof(float));
 }
 
 /*
@@ -457,8 +457,9 @@ static void nn_feed_forward(NN *nn, const float *x) {
     size_t x_cols = nn->units_configuration[0];
 
     /* Copy input into intermediate_activations */
-    nn->intermediate_activations[0] = 1.0; /* Bias */
-    memcpy(nn->intermediate_activations + 1, x, x_cols * sizeof(float));
+    nn->scratchpad[0] = 1.0; /* Bias */
+    memcpy(nn->scratchpad + 1, x, x_cols * sizeof(float));
+    nn_cuda_memcpy_to_device(nn->ctx, nn->intermediate_activations, nn->scratchpad, (x_cols+1)*sizeof(float));
 
     /* Feed forward through the nn layers */
     float *activations_i = nn->intermediate_activations; /* Activations of units i */
@@ -474,7 +475,8 @@ static void nn_feed_forward(NN *nn, const float *x) {
         */
         const unsigned int is_not_last_layer = (i != nn->layers_len - 1) ? 1 : 0;
 
-        nn_matrix_mul(
+        nn_cuda_matmul(
+            nn->ctx,
             activations_i, x_rows, x_cols + 1, /* + 1 is for multiply the bias weights */
             nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
             activations_i_next + is_not_last_layer
@@ -482,7 +484,8 @@ static void nn_feed_forward(NN *nn, const float *x) {
 
         /* Bias for next iteration */
         if (is_not_last_layer) {
-            activations_i_next[0] = 1.0;
+            float one[1] = {1.0};
+            nn_cuda_memcpy_to_device(nn->ctx, activations_i_next, one, 1*sizeof(float));
         }
 
         /* Applying activation function */
