@@ -50,19 +50,24 @@ extern "C" {
     }
 
     void nn_cuda_malloc(size_t size, float **d) {
-        CUDA_CHECK(cudaMalloc(d, sizeof(float) * size));
+        CUDA_CHECK(cudaMalloc(d, size));
     }
 
     void nn_cuda_free(float *d) {
         CUDA_CHECK(cudaFree(d));
     }
 
-    void nn_cuda_memcpy(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
-        CUDA_CHECK(cudaMemcpyAsync(dest, src, sizeof(float) * n, cudaMemcpyHostToDevice, ctx->stream));
+    void nn_cuda_memcpy_to_device(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
+        CUDA_CHECK(cudaMemcpyAsync(dest, src, n, cudaMemcpyHostToDevice, ctx->stream));
         CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
     }
 
-    void nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C, bool transpose_B) {
+    void nn_cuda_memcpy_to_host(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
+        CUDA_CHECK(cudaMemcpyAsync(dest, src, n, cudaMemcpyDeviceToHost, ctx->stream));
+        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
+    }
+
+    static void _nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C, bool transpose_B) {
         size_t C_rows = A_rows;
 
         const int m = A_rows;
@@ -88,5 +93,13 @@ extern "C" {
         CUBLAS_CHECK(cublasSgemm(ctx->cublasH, transa, transb, m, n, k, &alpha, A, lda, B, ldb, &beta, C, ldc));
 
         CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
+    }
+
+    void nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C) {
+        _nn_cuda_matmul(ctx, A, A_rows, A_cols, B, B_rows, B_cols, C, false);
+    }
+
+    void nn_cuda_matmul_t(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C) {
+        _nn_cuda_matmul(ctx, A, A_rows, A_cols, B, B_rows, B_cols, C, true);
     }
 }
