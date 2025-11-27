@@ -12,7 +12,7 @@
 
 /* ======================== Data structures ======================== */
 
-typedef void (*nn_activation)(float *, float *, size_t);
+typedef void (*nn_activation)(float *, size_t);
 typedef float (*nn_activation_derivative)(float);
 
 struct NN {
@@ -234,21 +234,21 @@ static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float
 
 /* ============== Activation functions and derivative ============== */
 
-static void sigmoid_vec(float *x, float *out, size_t len) {
+static void sigmoid_vec(float *x, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        out[i] = 1.0 / (1.0 + expf(-x[i]));
+        x[i] = 1.0 / (1.0 + expf(-x[i]));
     }
 }
 
-static void relu_vec(float *x, float *out, size_t len) {
+static void relu_vec(float *x, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        out[i] = (x[i] > 0.0) ? x[i] : 0.0;
+        x[i] = (x[i] > 0.0) ? x[i] : 0.0;
     }
 }
 
-static void tanh_vec(float *x, float *out, size_t len) {
+static void tanh_vec(float *x, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        out[i] = tanhf(x[i]);
+        x[i] = tanhf(x[i]);
     }
 }
 
@@ -257,7 +257,7 @@ static void tanh_vec(float *x, float *out, size_t len) {
 *  (https://en.wikipedia.org/wiki/Softmax_function#Numerical_algorithms)
 *  (https://en.wikipedia.org/wiki/Softmax_function#Example)
 */
-static void softmax(float *x, float *out, size_t len) {
+static void softmax(float *x, size_t len) {
 
     /* Get the max of 'x' */
     float max = -FLT_MAX;
@@ -276,7 +276,7 @@ static void softmax(float *x, float *out, size_t len) {
 
     /* Compute the softmax for each xi*/
     for (size_t i = 0; i < len; ++i) {
-        out[i] = expf((x[i] - max)) / sum;
+        x[i] = expf((x[i] - max)) / sum;
     }
 }
 
@@ -459,7 +459,6 @@ static void nn_feed_forward(NN *nn, const float *x) {
 
         /* Applying activation function */
         nn->activations[i](
-            activations_i_next + is_not_last_layer,
             activations_i_next + is_not_last_layer,
             res_len
         );
