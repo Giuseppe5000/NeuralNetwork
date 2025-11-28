@@ -177,7 +177,7 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
 }
 
 /*
-*  Computes the loss using the selected loss function ('loss')
+*  Computes the loss using the selected loss function ('loss_type')
 *  and using the data in 'x_data' and 'y_data' of length 'data_len'.
 *  The computed loss will be printed into 'fp'.
 */
@@ -410,7 +410,7 @@ void nn_free(NN *nn) {
 void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x);
 
-    /* Copy the output, which is stored in the last elements of intermediate activations into 'out' */
+    /* Copy the output, which is stored in the last elements of intermediate activations, into 'out' */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     const size_t out_index = nn->intermediate_activations_len - out_len;
     memcpy(out, nn->intermediate_activations + out_index, out_len*sizeof(float));
@@ -421,7 +421,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
 *
 *  'x' is an array of length 'nn->units_configuration[0]'.
 *
-*  Each output of the feed forward is computed and stored in 'nn->intermediate_activations' (input included).
+*  Each intermediate activation of the feed forward is computed and stored in 'nn->intermediate_activations' (input included).
 *  So the final output of the network is stored at the end of this array.
 */
 static void nn_feed_forward(NN *nn, const float *x) {
@@ -440,7 +440,7 @@ static void nn_feed_forward(NN *nn, const float *x) {
         const size_t res_len = nn->units_configuration[i+1];
 
         /*
-        *  We need to know we we are on the last layer.
+        *  We need to know if we are on the last layer.
         *  Because in that case we don't need to put 1.0 in activations_i_next
         *  for biases multiplication.
         */
