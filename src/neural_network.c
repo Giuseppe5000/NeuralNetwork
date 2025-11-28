@@ -13,7 +13,7 @@
 
 /* ======================== Data structures ======================== */
 
-typedef void (*nn_activation)(float *, float *, size_t);
+typedef void (*nn_activation)(float *, size_t);
 typedef float (*nn_activation_derivative)(float);
 
 struct NN {
@@ -244,51 +244,51 @@ static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float
 
 /* ============== Activation functions and derivative ============== */
 
-static void sigmoid_vec(float *x, float *out, size_t len) {
-    for (size_t i = 0; i < len; ++i) {
-        out[i] = 1.0 / (1.0 + expf(-x[i]));
-    }
-}
+// static void sigmoid_vec(float *x, float *out, size_t len) {
+//     for (size_t i = 0; i < len; ++i) {
+//         out[i] = 1.0 / (1.0 + expf(-x[i]));
+//     }
+// }
 
-static void relu_vec(float *x, float *out, size_t len) {
-    for (size_t i = 0; i < len; ++i) {
-        out[i] = (x[i] > 0.0) ? x[i] : 0.0;
-    }
-}
+// static void relu_vec(float *x, float *out, size_t len) {
+//     for (size_t i = 0; i < len; ++i) {
+//         out[i] = (x[i] > 0.0) ? x[i] : 0.0;
+//     }
+// }
 
-static void tanh_vec(float *x, float *out, size_t len) {
-    for (size_t i = 0; i < len; ++i) {
-        out[i] = tanhf(x[i]);
-    }
-}
+// static void tanh_vec(float *x, float *out, size_t len) {
+//     for (size_t i = 0; i < len; ++i) {
+//         out[i] = tanhf(x[i]);
+//     }
+// }
 
 /*
 *  Safe implementation.
 *  (https://en.wikipedia.org/wiki/Softmax_function#Numerical_algorithms)
 *  (https://en.wikipedia.org/wiki/Softmax_function#Example)
 */
-static void softmax(float *x, float *out, size_t len) {
+// static void softmax(float *x, float *out, size_t len) {
 
-    /* Get the max of 'x' */
-    float max = -FLT_MAX;
-    for (size_t i = 0; i < len; ++i) {
-        if (x[i] > max) max = x[i];
-    }
+//     /* Get the max of 'x' */
+//     float max = -FLT_MAX;
+//     for (size_t i = 0; i < len; ++i) {
+//         if (x[i] > max) max = x[i];
+//     }
 
-    /*
-    *  Get the sum of all 'exp(beta*(xi - max))'.
-    *  beta = 1.0.
-    */
-    float sum = 0.0;
-    for (size_t i = 0; i < len; ++i) {
-        sum += expf((x[i] - max));
-    }
+//     /*
+//     *  Get the sum of all 'exp(beta*(xi - max))'.
+//     *  beta = 1.0.
+//     */
+//     float sum = 0.0;
+//     for (size_t i = 0; i < len; ++i) {
+//         sum += expf((x[i] - max));
+//     }
 
-    /* Compute the softmax for each xi*/
-    for (size_t i = 0; i < len; ++i) {
-        out[i] = expf((x[i] - max)) / sum;
-    }
-}
+//     /* Compute the softmax for each xi*/
+//     for (size_t i = 0; i < len; ++i) {
+//         out[i] = expf((x[i] - max)) / sum;
+//     }
+// }
 
 /* Computes the derivative taking as input the sigmoid of x */
 static float sigmoid_derivative(float sigmoid_x) {
@@ -323,7 +323,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
 
     /* Scratchpad init */
     size_t largest_layer_size = 0;
-    for (size_t i = 0; i < nn->layers_len; ++i) {
+    for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         const size_t current_layer_len = (nn->units_configuration[i] + 1) * (nn->units_configuration[i+1]);
         if (current_layer_len > largest_layer_size) {
             largest_layer_size = current_layer_len;
@@ -385,15 +385,15 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
     for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         switch (units_activation[i]) {
             case NN_SIGMOID:
-                (nn->activations)[i] = sigmoid_vec;
+                (nn->activations)[i] = nn_cuda_sigmoid_vec;
                 (nn->activations_derivative)[i] = sigmoid_derivative;
                 break;
             case NN_RELU:
-                (nn->activations)[i] = relu_vec;
+                (nn->activations)[i] = nn_cuda_relu_vec;
                 (nn->activations_derivative)[i] = relu_derivative;
                 break;
             case NN_TANH:
-                (nn->activations)[i] = tanh_vec;
+                (nn->activations)[i] = nn_cuda_tanh_vec;
                 (nn->activations_derivative)[i] = tanh_derivative;
                 break;
             case NN_SOFTMAX:
@@ -401,7 +401,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
                     fprintf(stderr, "[ERROR]: NN_SOFTMAX can be used only on the output layer.\n");
                     exit(1);
                 }
-                (nn->activations)[i] = softmax;
+                (nn->activations)[i] = nn_cuda_softmax;
                 (nn->activations_derivative)[i] = NULL; /* Not needed */
                 break;
             default:
@@ -484,13 +484,12 @@ static void nn_feed_forward(NN *nn, const float *x) {
 
         /* Bias for next iteration */
         if (is_not_last_layer) {
-            float one[1] = {1.0};
+            const float one[1] = {1.0};
             nn_cuda_memcpy_to_device(nn->ctx, activations_i_next, one, 1*sizeof(float));
         }
 
         /* Applying activation function */
         nn->activations[i](
-            activations_i_next + is_not_last_layer,
             activations_i_next + is_not_last_layer,
             res_len
         );
@@ -508,7 +507,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         exit(1);
     }
 
-    if (opt->loss_type == NN_MSE && nn->activations[nn->layers_len - 1] == softmax) {
+    if (opt->loss_type == NN_MSE && nn->activations[nn->layers_len - 1] == nn_cuda_softmax) {
         fprintf(stderr, "[ERROR]: You should use NN_CROSS_ENTROPY with softmax activation.\n");
         exit(1);
     }

@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 
 struct NN_CUDA_ctx {
-    cublasHandle_t cublasH;
+    cublasHandle_t cublasH; /* TODO: rename to cublasHandle */
     cudaStream_t stream;
 };
 
@@ -102,4 +102,29 @@ extern "C" {
     void nn_cuda_matmul_t(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C) {
         _nn_cuda_matmul(ctx, A, A_rows, A_cols, B, B_rows, B_cols, C, true);
     }
+
+    /* ============== Activation functions and derivative ============== */
+    __global__ void sigmoidKernel(float *x, size_t len) {
+        int i = threadIdx.x + blockIdx.x * blockDim.x;
+        x[i] = 1.0 / (1.0 + expf(-x[i]));
+    }
+
+    void nn_cuda_sigmoid_vec(float *x, size_t len) {
+        const int blocksize = 512;
+        int nblocks = (int)((len + blocksize - 1) / blocksize);
+        sigmoidKernel<<<nblocks, blocksize>>>(x, len);
+    }
+
+    void nn_cuda_relu_vec(float *x, size_t len) {
+
+    }
+    void nn_cuda_tanh_vec(float *x, size_t len) {
+
+    }
+    void nn_cuda_softmax(float *x, size_t len) {
+
+    }
+
+    /* ================================================================= */
+
 }

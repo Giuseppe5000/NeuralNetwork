@@ -1,5 +1,5 @@
-#ifndef NEURAL_NETWORK_CUDA
-#define NEURAL_NETWORK_CUDA
+#ifndef NEURAL_NETWORK_CUDA_H
+#define NEURAL_NETWORK_CUDA_H
 
 #include <stdbool.h>
 #include <cublas_v2.h>
@@ -26,8 +26,13 @@ void nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_
 
 void nn_cuda_matmul_t(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C);
 
+void nn_cuda_sigmoid_vec(float *x, size_t len);
+void nn_cuda_relu_vec(float *x, size_t len);
+void nn_cuda_tanh_vec(float *x, size_t len);
+void nn_cuda_softmax(float *x, size_t len);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* NEURAL_NETWORK_CUDA */
+#endif /* NEURAL_NETWORK_CUDA_H */
