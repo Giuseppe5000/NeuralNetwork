@@ -187,7 +187,7 @@ static void nn_matrix_mul_t(const float *A, size_t A_rows, size_t A_cols, const 
 }
 
 /*
-*  Computes the loss using the selected loss function ('loss')
+*  Computes the loss using the selected loss function ('loss_type')
 *  and using the data in 'x_data' and 'y_data' of length 'data_len'.
 *  The computed loss will be printed into 'fp'.
 */
@@ -244,21 +244,21 @@ static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float
 
 /* ============== Activation functions and derivative ============== */
 
-// static void sigmoid_vec(float *x, float *out, size_t len) {
+// static void sigmoid_vec(float *x, size_t len) {
 //     for (size_t i = 0; i < len; ++i) {
-//         out[i] = 1.0 / (1.0 + expf(-x[i]));
+//         x[i] = 1.0 / (1.0 + expf(-x[i]));
 //     }
 // }
 
-// static void relu_vec(float *x, float *out, size_t len) {
+// static void relu_vec(float *x, size_t len) {
 //     for (size_t i = 0; i < len; ++i) {
-//         out[i] = (x[i] > 0.0) ? x[i] : 0.0;
+//         x[i] = (x[i] > 0.0) ? x[i] : 0.0;
 //     }
 // }
 
-// static void tanh_vec(float *x, float *out, size_t len) {
+// static void tanh_vec(float *x, size_t len) {
 //     for (size_t i = 0; i < len; ++i) {
-//         out[i] = tanhf(x[i]);
+//         x[i] = tanhf(x[i]);
 //     }
 // }
 
@@ -267,7 +267,7 @@ static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float
 *  (https://en.wikipedia.org/wiki/Softmax_function#Numerical_algorithms)
 *  (https://en.wikipedia.org/wiki/Softmax_function#Example)
 */
-// static void softmax(float *x, float *out, size_t len) {
+// static void softmax(float *x, size_t len) {
 
 //     /* Get the max of 'x' */
 //     float max = -FLT_MAX;
@@ -286,7 +286,7 @@ static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float
 
 //     /* Compute the softmax for each xi*/
 //     for (size_t i = 0; i < len; ++i) {
-//         out[i] = expf((x[i] - max)) / sum;
+//         x[i] = expf((x[i] - max)) / sum;
 //     }
 // }
 
@@ -438,7 +438,7 @@ void nn_free(NN *nn) {
 void nn_predict(NN *nn, const float *x, float *out) {
     nn_feed_forward(nn, x);
 
-    /* Copy the output, which is stored in the last elements of intermediate activations into 'out' */
+    /* Copy the output, which is stored in the last elements of intermediate activations, into 'out' */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     const size_t out_index = nn->intermediate_activations_len - out_len;
     nn_cuda_memcpy_to_host(nn->ctx, out, nn->intermediate_activations + out_index, out_len*sizeof(float));
@@ -449,7 +449,7 @@ void nn_predict(NN *nn, const float *x, float *out) {
 *
 *  'x' is an array of length 'nn->units_configuration[0]'.
 *
-*  Each output of the feed forward is computed and stored in 'nn->intermediate_activations' (input included).
+*  Each intermediate activation of the feed forward is computed and stored in 'nn->intermediate_activations' (input included).
 *  So the final output of the network is stored at the end of this array.
 */
 static void nn_feed_forward(NN *nn, const float *x) {
@@ -469,7 +469,7 @@ static void nn_feed_forward(NN *nn, const float *x) {
         const size_t res_len = nn->units_configuration[i+1];
 
         /*
-        *  We need to know we we are on the last layer.
+        *  We need to know if we are on the last layer.
         *  Because in that case we don't need to put 1.0 in activations_i_next
         *  for biases multiplication.
         */
