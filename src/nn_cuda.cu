@@ -62,14 +62,16 @@ extern "C" {
         CUDA_CHECK(cudaMemset(d, value, count));
     }
 
-    void nn_cuda_memcpy_to_device(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
+    void nn_cuda_memcpy_host_to_device(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
         CUDA_CHECK(cudaMemcpyAsync(dest, src, n, cudaMemcpyHostToDevice, ctx->stream));
-        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
     }
 
-    void nn_cuda_memcpy_to_host(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
+    void nn_cuda_memcpy_device_to_host(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
         CUDA_CHECK(cudaMemcpyAsync(dest, src, n, cudaMemcpyDeviceToHost, ctx->stream));
-        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
+    }
+
+    void nn_cuda_memcpy_device_to_device(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
+        CUDA_CHECK(cudaMemcpyAsync(dest, src, n, cudaMemcpyDeviceToDevice, ctx->stream));
     }
 
     static void _nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C, bool transpose_B) {
@@ -96,8 +98,6 @@ extern "C" {
 
         /* Compute */
         CUBLAS_CHECK(cublasSgemm(ctx->cublasH, transa, transb, m, n, k, &alpha, A, lda, B, ldb, &beta, C, ldc));
-
-        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
     }
 
     void nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C) {
@@ -108,16 +108,34 @@ extern "C" {
         _nn_cuda_matmul(ctx, A, A_rows, A_cols, B, B_rows, B_cols, C, true);
     }
 
-    void nn_cuda_add(const NN_CUDA_ctx *ctx, float *x,  const float *y, size_t len, float alpha) {
+    void nn_cuda_add(const NN_CUDA_ctx *ctx, float *res, float *x, const float *y, size_t len, float alpha) {
         const int incx = 1;
         const int incy = 1;
 
-        CUBLAS_CHECK(cublasSaxpy(ctx->cublasH, len, &alpha, y, incx, x, incy));
-        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
+        CUDA_CHECK(cudaMemcpyAsync(res, x, len * sizeof(float), cudaMemcpyDeviceToDevice));
+        CUBLAS_CHECK(cublasSaxpy(ctx->cublasH, len, &alpha, y, incx, res, incy));
+    }
+
+
+    __device__ float sigmoid_derivative(float sigmoid_x) {
+        return sigmoid_x * (1.0 - sigmoid_x);
+    }
+    __global__ void elementwise_mult_kernel(float *x, const float *y, size_t len) {
+        size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+
+        /* TODO: embedding sigmoid derivative, remove later */
+        if (i < len) {
+            x[i] = x[i] * sigmoid_derivative(y[i]);
+        }
+    }
+    void nn_cuda_mult_elementwise(const NN_CUDA_ctx *ctx, float *x, float *y, size_t len) {
+        const int blocksize = 512;
+        int nblocks = (int)((len + blocksize - 1) / blocksize);
+        elementwise_mult_kernel<<<nblocks, blocksize>>>(x, y, len);
     }
 
     /* ============== Activation functions and derivative ============== */
-    __global__ void sigmoidKernel(float *x, size_t len) {
+    __global__ void sigmoid_kernel(float *x, size_t len) {
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         x[i] = 1.0 / (1.0 + expf(-x[i]));
     }
@@ -125,7 +143,7 @@ extern "C" {
     void nn_cuda_sigmoid_vec(float *x, size_t len) {
         const int blocksize = 512;
         int nblocks = (int)((len + blocksize - 1) / blocksize);
-        sigmoidKernel<<<nblocks, blocksize>>>(x, len);
+        sigmoid_kernel<<<nblocks, blocksize>>>(x, len);
     }
 
     void nn_cuda_relu_vec(float *x, size_t len) {
