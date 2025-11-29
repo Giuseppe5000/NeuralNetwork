@@ -18,6 +18,8 @@ void nn_cuda_malloc(size_t size, float **d);
 
 void nn_cuda_free(float *d);
 
+void nn_cuda_memset(float *d, int value, size_t count);
+
 void nn_cuda_memcpy_to_device(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n);
 
 void nn_cuda_memcpy_to_host(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n);
@@ -25,6 +27,12 @@ void nn_cuda_memcpy_to_host(const NN_CUDA_ctx *ctx, float *dest, const float *sr
 void nn_cuda_matmul(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C);
 
 void nn_cuda_matmul_t(const NN_CUDA_ctx *ctx, const float *A, size_t A_rows, size_t A_cols, const float *B, size_t B_rows, size_t B_cols, float *C);
+
+/*
+*  'x' and 'y' are vectors of length 'len' allocated on the gpu.
+*  This function computes xi = xi + alpha*yi.
+*/
+void nn_cuda_add(const NN_CUDA_ctx *ctx, float *x,  const float *y, size_t len, float alpha);
 
 void nn_cuda_sigmoid_vec(float *x, size_t len);
 void nn_cuda_relu_vec(float *x, size_t len);

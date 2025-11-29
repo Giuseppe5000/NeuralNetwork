@@ -2,6 +2,7 @@
 
 #include "nn_cuda.h"
 #include <stdio.h>
+#include <assert.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
@@ -57,6 +58,10 @@ extern "C" {
         CUDA_CHECK(cudaFree(d));
     }
 
+    void nn_cuda_memset(float *d, int value, size_t count) {
+        CUDA_CHECK(cudaMemset(d, value, count));
+    }
+
     void nn_cuda_memcpy_to_device(const NN_CUDA_ctx *ctx, float *dest, const float *src, size_t n) {
         CUDA_CHECK(cudaMemcpyAsync(dest, src, n, cudaMemcpyHostToDevice, ctx->stream));
         CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
@@ -103,6 +108,14 @@ extern "C" {
         _nn_cuda_matmul(ctx, A, A_rows, A_cols, B, B_rows, B_cols, C, true);
     }
 
+    void nn_cuda_add(const NN_CUDA_ctx *ctx, float *x,  const float *y, size_t len, float alpha) {
+        const int incx = 1;
+        const int incy = 1;
+
+        CUBLAS_CHECK(cublasSaxpy(ctx->cublasH, len, &alpha, y, incx, x, incy));
+        CUDA_CHECK(cudaStreamSynchronize(ctx->stream));
+    }
+
     /* ============== Activation functions and derivative ============== */
     __global__ void sigmoidKernel(float *x, size_t len) {
         int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -116,13 +129,25 @@ extern "C" {
     }
 
     void nn_cuda_relu_vec(float *x, size_t len) {
-
+        assert(0 && "Not implemented");
     }
     void nn_cuda_tanh_vec(float *x, size_t len) {
-
+        assert(0 && "Not implemented");
     }
-    void nn_cuda_softmax(float *x, size_t len) {
 
+    // __global__ void softmaxKernel(float *x, size_t len) {
+    //     int i = threadIdx.x + blockIdx.x * blockDim.x;
+    //     x[i] = 1.0 / (1.0 + expf(-x[i]));
+    // }
+
+    void nn_cuda_softmax(float *x, size_t len) {
+        assert(0 && "Not implemented");
+
+        /* asum and amax can be useful */
+
+        // const int blocksize = 512;
+        // int nblocks = (int)((len + blocksize - 1) / blocksize);
+        // softmaxKernel<<<nblocks, blocksize>>>(x, len);
     }
 
     /* ================================================================= */
