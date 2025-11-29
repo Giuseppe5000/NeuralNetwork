@@ -238,52 +238,6 @@ static void loss_log(NN *nn, FILE *fp, enum Loss_function loss_type, const float
 
 /* ============== Activation functions and derivative ============== */
 
-// static void sigmoid_vec(float *x, size_t len) {
-//     for (size_t i = 0; i < len; ++i) {
-//         x[i] = 1.0 / (1.0 + expf(-x[i]));
-//     }
-// }
-
-// static void relu_vec(float *x, size_t len) {
-//     for (size_t i = 0; i < len; ++i) {
-//         x[i] = (x[i] > 0.0) ? x[i] : 0.0;
-//     }
-// }
-
-// static void tanh_vec(float *x, size_t len) {
-//     for (size_t i = 0; i < len; ++i) {
-//         x[i] = tanhf(x[i]);
-//     }
-// }
-
-/*
-*  Safe implementation.
-*  (https://en.wikipedia.org/wiki/Softmax_function#Numerical_algorithms)
-*  (https://en.wikipedia.org/wiki/Softmax_function#Example)
-*/
-// static void softmax(float *x, size_t len) {
-
-//     /* Get the max of 'x' */
-//     float max = -FLT_MAX;
-//     for (size_t i = 0; i < len; ++i) {
-//         if (x[i] > max) max = x[i];
-//     }
-
-//     /*
-//     *  Get the sum of all 'exp(beta*(xi - max))'.
-//     *  beta = 1.0.
-//     */
-//     float sum = 0.0;
-//     for (size_t i = 0; i < len; ++i) {
-//         sum += expf((x[i] - max));
-//     }
-
-//     /* Compute the softmax for each xi*/
-//     for (size_t i = 0; i < len; ++i) {
-//         x[i] = expf((x[i] - max)) / sum;
-//     }
-// }
-
 /* Computes the derivative taking as input the sigmoid of x */
 static float sigmoid_derivative(float sigmoid_x) {
     return sigmoid_x * (1.0 - sigmoid_x);
