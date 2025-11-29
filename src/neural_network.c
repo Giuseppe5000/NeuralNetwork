@@ -329,7 +329,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
         }
 
         /* Copy current initialized layer to the gpu */
-        nn_cuda_memcpy_to_device(nn->ctx, nn->layers[i], scratchpad, layer_size*sizeof(float));
+        nn_cuda_memcpy_host_to_device(nn->ctx, nn->layers[i], scratchpad, layer_size*sizeof(float));
     }
     free(scratchpad);
 
@@ -390,12 +390,19 @@ void nn_free(NN *nn) {
 }
 
 void nn_predict(NN *nn, const float *x, float *out) {
-    nn_feed_forward(nn, x);
+    float *x_cuda = NULL;
+    const size_t x_size = nn->units_configuration[0];
+    nn_cuda_malloc(x_size * sizeof(float), &x_cuda);
+    nn_cuda_memcpy_host_to_device(nn->ctx, x_cuda, x, x_size * sizeof(float));
+
+    nn_feed_forward(nn, x_cuda);
 
     /* Copy the output, which is stored in the last elements of intermediate activations, into 'out' */
     const size_t out_len = nn->units_configuration[nn->units_configuration_len - 1];
     const size_t out_index = nn->intermediate_activations_len - out_len;
-    nn_cuda_memcpy_to_host(nn->ctx, out, nn->intermediate_activations + out_index, out_len*sizeof(float));
+    nn_cuda_memcpy_device_to_host(nn->ctx, out, nn->intermediate_activations + out_index, out_len*sizeof(float));
+
+    nn_cuda_free(x_cuda);
 }
 
 /*
@@ -411,11 +418,8 @@ static void nn_feed_forward(NN *nn, const float *x) {
     size_t x_cols = nn->units_configuration[0];
 
     /* Copy input into intermediate_activations */
-    float *scratchpad = nn_malloc(sizeof(float)*(x_cols+1));
-    scratchpad[0] = 1.0; /* Bias */
-    memcpy(scratchpad + 1, x, x_cols * sizeof(float));
-    nn_cuda_memcpy_to_device(nn->ctx, nn->intermediate_activations, scratchpad, (x_cols+1)*sizeof(float));
-    free(scratchpad);
+    nn_cuda_memset(nn->intermediate_activations, 1.0, 1*sizeof(float));
+    nn_cuda_memcpy_device_to_device(nn->ctx, nn->intermediate_activations + 1, x, x_cols*sizeof(float));
 
     /* Feed forward through the nn layers */
     float *activations_i = nn->intermediate_activations; /* Activations of units i */
@@ -440,8 +444,7 @@ static void nn_feed_forward(NN *nn, const float *x) {
 
         /* Bias for next iteration */
         if (is_not_last_layer) {
-            const float one[1] = {1.0};
-            nn_cuda_memcpy_to_device(nn->ctx, activations_i_next, one, 1*sizeof(float));
+            nn_cuda_memset(activations_i_next, 1.0, 1*sizeof(float));
         }
 
         /* Applying activation function */
@@ -488,11 +491,9 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     nn_cuda_malloc(nn->weights_len * sizeof(float), &gradient_acc);
 
     /*
-    *  Scratchpad is an array big enough used for weights init.
+    *  Scratchpad is an array big enough used in backprop.
     *  Big enough = the layer with the biggest amount of weights.
     *  It is useful for storing temporary outputs.
-    *
-    *  TODO: use more efficient way.
     */
     size_t largest_layer_size = 0;
     for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
@@ -509,6 +510,18 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     for (size_t i = 0; i < train_len; ++i) {
         train_indexes[i] = i;
     }
+
+    /* Load y_train in the gpu memory */
+    float *y_train_cuda = NULL;
+    const size_t y_train_size = train_len * nn->units_configuration[nn->units_configuration_len - 1];
+    nn_cuda_malloc(y_train_size * sizeof(float), &y_train_cuda);
+    nn_cuda_memcpy_host_to_device(nn->ctx, y_train_cuda, y_train, y_train_size * sizeof(float));
+
+    /* Load x_train in the gpu memory */
+    float *x_train_cuda = NULL;
+    const size_t x_train_size = train_len * nn->units_configuration[0];
+    nn_cuda_malloc(x_train_size * sizeof(float), &x_train_cuda);
+    nn_cuda_memcpy_host_to_device(nn->ctx, x_train_cuda, x_train, x_train_size * sizeof(float));
 
     /* If logging is enabled, print some informations on the top of the file */
     if (opt->loss_log_fp != NULL) {
@@ -563,25 +576,27 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
             for (size_t batch_i = 0; batch_i < current_batch_size; ++batch_i) {
                 const size_t train_i = train_indexes[i + batch_i];
 
-                nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0]);
-                backpropagation(nn, train_i, y_train, deltas, deltas_len, gradient_acc, scratchpad, opt->loss_type);
+                nn_feed_forward(nn, x_train_cuda + train_i * nn->units_configuration[0]);
+                backpropagation(nn, train_i, y_train_cuda, deltas, deltas_len, gradient_acc, scratchpad, opt->loss_type);
             }
 
             /* Update weights using the gradients */
-            nn_cuda_add(nn->ctx, nn->weights, gradient_acc, nn->weights_len, -1 * (opt->learning_rate) * (1.0 / current_batch_size));
+            nn_cuda_add(nn->ctx, nn->weights, nn->weights, gradient_acc, nn->weights_len, -1 * (opt->learning_rate) * (1.0 / current_batch_size));
         }
     }
 
     nn_cuda_free(deltas);
     nn_cuda_free(gradient_acc);
     nn_cuda_free(scratchpad);
+    nn_cuda_free(y_train_cuda);
+    nn_cuda_free(x_train_cuda);
     free(train_indexes);
 }
 
 /*
 *  Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 */
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad, enum Loss_function loss) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train_cuda, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad, enum Loss_function loss) {
 
     /*
     *  We need to calculate all the delta(l) arrays (errors of the neurons at layer l) starting from the output.
@@ -612,11 +627,18 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
 
     const size_t deltas_out_index = deltas_len - out_len;
     size_t intermediate_activations_index = nn->intermediate_activations_len - out_len;
-    for (size_t i = 0; i < out_len; ++i) {
-        deltas[deltas_out_index + i] = out[i] - y_train[batch_i*out_len + i];
-        if (loss == NN_MSE) {
-            deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](nn->intermediate_activations[intermediate_activations_index+i]);
-        }
+    nn_cuda_add(
+        nn->ctx,
+        deltas + deltas_out_index,
+        out,
+        y_train_cuda + batch_i*out_len,
+        out_len,
+        -1.0
+    );
+
+    if (loss == NN_MSE) {
+        /* TODO */
+        // deltas[deltas_out_index + i] *= nn->activations_derivative[nn->layers_len - 1](nn->intermediate_activations[intermediate_activations_index+i]);
     }
 
     /* delta(L-1) .. delta(1) */
@@ -626,18 +648,17 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
         intermediate_activations_index -= res_len;
 
         /* delta(l) = transpose(nn->layers[l]) * delta(l+1) .* f'(z(l) */
-        nn_matrix_mul_t(
+        nn_cuda_matmul_t(
+            nn->ctx,
             deltas + deltas_index, 1, nn->units_configuration[i+1],
             nn->layers[i], nn->units_configuration[i] + 1, nn->units_configuration[i+1],
-            nn->scratchpad
+            scratchpad
         );
 
-        for (size_t j = 1; j < res_len; ++j) {
-            nn->scratchpad[j] *= nn->activations_derivative[i-1](nn->intermediate_activations[intermediate_activations_index+j]);
-        }
-
+        /* TODO: Should pass the activation function */
+        nn_cuda_mult_elementwise(nn->ctx, scratchpad + 1, nn->intermediate_activations + intermediate_activations_index + 1, res_len - 1);
         deltas_index -= res_len - 1;
-        memcpy(deltas + deltas_index, nn->scratchpad + 1, (res_len - 1) * sizeof(float));
+        nn_cuda_memcpy_device_to_device(nn->ctx, deltas + deltas_index, scratchpad + 1, (res_len - 1) * sizeof(float));
     }
 
     /*
@@ -651,16 +672,23 @@ static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, 
     deltas_index = 0;
     float *activations_i = nn->intermediate_activations;
     for (size_t i = 0; i < nn->layers_len; ++i) {
-        nn_matrix_mul(
+        nn_cuda_matmul(
+            nn->ctx,
             activations_i, nn->units_configuration[i] + 1, 1,
             deltas + deltas_index, 1, nn->units_configuration[i+1],
-            nn->scratchpad
+            scratchpad
         );
 
         /* Gradient accumulation */
-        for (size_t j = 0; j < (nn->units_configuration[i] + 1) * nn->units_configuration[i+1]; ++j) {
-            gradient_acc[gradient_acc_index + j] += nn->scratchpad[j];
-        }
+        nn_cuda_add(
+            nn->ctx,
+            gradient_acc + gradient_acc_index,
+            gradient_acc + gradient_acc_index,
+            scratchpad,
+            (nn->units_configuration[i] + 1) * nn->units_configuration[i+1],
+            1.0
+        );
+
         gradient_acc_index += (nn->units_configuration[i] + 1) * nn->units_configuration[i+1];
 
         activations_i += nn->units_configuration[i] + 1;

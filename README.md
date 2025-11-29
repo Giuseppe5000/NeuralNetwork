@@ -52,4 +52,5 @@ So I leave here the training chart if you don't want to wait:
 
 ## TODO
 - [ ] Implement all activations in CUDA (for feed_forward).
-- [ ] Use CUDA functions in nn_fit and backprop.
+- [ ] Fix cuda syncronization problems
+- [ ] See TODOs in the code
