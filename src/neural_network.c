@@ -70,13 +70,6 @@ struct NN {
     float *intermediate_activations;
     size_t intermediate_activations_len;
 
-   /*
-    *  Scratchpad is an array big enough used for weights init and backprop.
-    *  Big enough = the layer with the biggest amount of weights.
-    *  It is useful for storing temporary outputs.
-    */
-    float *scratchpad;
-
     /* Cuda context */
     NN_CUDA_ctx *ctx;
 };
@@ -95,6 +88,7 @@ static void backpropagation(
     float *deltas,
     size_t deltas_len,
     float *gradient_acc,
+    float *scratchpad,
     enum Loss_function loss
 );
 
@@ -321,7 +315,13 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
     nn->units_configuration_len = units_configuration_len;
     memcpy(nn->units_configuration, units_configuration, units_configuration_len * sizeof(size_t));
 
-    /* Scratchpad init */
+    /*
+    *  Scratchpad is an array big enough used for weights init.
+    *  Big enough = the layer with the biggest amount of weights.
+    *  It is useful for storing temporary outputs.
+    *
+    *  TODO: use more efficient way.
+    */
     size_t largest_layer_size = 0;
     for (size_t i = 0; i < units_configuration_len - 1; ++i) {
         const size_t current_layer_len = (nn->units_configuration[i] + 1) * (nn->units_configuration[i+1]);
@@ -329,7 +329,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
             largest_layer_size = current_layer_len;
         }
     }
-    nn->scratchpad = nn_malloc(largest_layer_size * sizeof(float));
+    float *scratchpad = nn_malloc(largest_layer_size * sizeof(float));
 
     /* Weights and layers initialize */
     nn->weights_len = 0;
@@ -356,7 +356,7 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
         const size_t layer_size = (units_configuration[i] * units_configuration[i+1]) + units_configuration[i+1];
 
         for (size_t j = 0; j < layer_size; ++j) {
-            float *weight = nn->scratchpad + j;
+            float *weight = scratchpad + j;
 
             switch (w_init) {
                 case NN_UNIFORM:
@@ -375,8 +375,9 @@ NN *nn_init(const size_t *units_configuration, size_t units_configuration_len, c
         }
 
         /* Copy current initialized layer to the gpu */
-        nn_cuda_memcpy_to_device(nn->ctx, nn->layers[i], nn->scratchpad, layer_size*sizeof(float));
+        nn_cuda_memcpy_to_device(nn->ctx, nn->layers[i], scratchpad, layer_size*sizeof(float));
     }
+    free(scratchpad);
 
     /* Activation functions initialize */
     nn->activations = nn_malloc((units_configuration_len - 1) * sizeof(nn_activation));
@@ -430,7 +431,6 @@ void nn_free(NN *nn) {
     free(nn->activations);
     free(nn->activations_derivative);
     nn_cuda_free(nn->intermediate_activations);
-    free(nn->scratchpad);
     nn_cuda_destroy(nn->ctx);
     free(nn);
 }
@@ -457,9 +457,11 @@ static void nn_feed_forward(NN *nn, const float *x) {
     size_t x_cols = nn->units_configuration[0];
 
     /* Copy input into intermediate_activations */
-    nn->scratchpad[0] = 1.0; /* Bias */
-    memcpy(nn->scratchpad + 1, x, x_cols * sizeof(float));
-    nn_cuda_memcpy_to_device(nn->ctx, nn->intermediate_activations, nn->scratchpad, (x_cols+1)*sizeof(float));
+    float *scratchpad = nn_malloc(sizeof(float)*(x_cols+1));
+    scratchpad[0] = 1.0; /* Bias */
+    memcpy(scratchpad + 1, x, x_cols * sizeof(float));
+    nn_cuda_memcpy_to_device(nn->ctx, nn->intermediate_activations, scratchpad, (x_cols+1)*sizeof(float));
+    free(scratchpad);
 
     /* Feed forward through the nn layers */
     float *activations_i = nn->intermediate_activations; /* Activations of units i */
@@ -524,10 +526,29 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
     for (size_t i = 1; i < nn->units_configuration_len; ++i) {
         deltas_len += nn->units_configuration[i];
     }
-    float *deltas = nn_malloc(deltas_len * sizeof(float));
+    float *deltas = NULL;
+    nn_cuda_malloc(deltas_len * sizeof(float), &deltas);
 
     /* Array for accumulating gradients */
-    float *gradient_acc = nn_malloc(nn->weights_len * sizeof(float));
+    float *gradient_acc = NULL;
+    nn_cuda_malloc(nn->weights_len * sizeof(float), &gradient_acc);
+
+    /*
+    *  Scratchpad is an array big enough used for weights init.
+    *  Big enough = the layer with the biggest amount of weights.
+    *  It is useful for storing temporary outputs.
+    *
+    *  TODO: use more efficient way.
+    */
+    size_t largest_layer_size = 0;
+    for (size_t i = 0; i < nn->units_configuration_len - 1; ++i) {
+        const size_t current_layer_len = (nn->units_configuration[i] + 1) * (nn->units_configuration[i+1]);
+        if (current_layer_len > largest_layer_size) {
+            largest_layer_size = current_layer_len;
+        }
+    }
+    float *scratchpad = NULL;
+    nn_cuda_malloc(largest_layer_size * sizeof(float), &scratchpad);
 
     /* Array of train index, that will be shuffled in order to do Stochastic and Mini-batch GD */
     size_t *train_indexes = nn_malloc(train_len * sizeof(size_t));
@@ -577,7 +598,7 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
         for (size_t i = 0; i < train_len; i+=opt->batch_size) {
 
             /* Reset gradient accumulator */
-            memset(gradient_acc, 0, nn->weights_len * sizeof(float));
+            nn_cuda_memset(gradient_acc, 0, nn->weights_len * sizeof(float));
 
             /*
             *  (Edge case in Mini-batch GD).
@@ -589,25 +610,24 @@ void nn_fit(NN *nn, const float *x_train, const float *y_train, size_t train_len
                 const size_t train_i = train_indexes[i + batch_i];
 
                 nn_feed_forward(nn, x_train + train_i * nn->units_configuration[0]);
-                backpropagation(nn, train_i, y_train, deltas, deltas_len, gradient_acc, opt->loss_type);
+                backpropagation(nn, train_i, y_train, deltas, deltas_len, gradient_acc, scratchpad, opt->loss_type);
             }
 
             /* Update weights using the gradients */
-            for (size_t j = 0; j < nn->weights_len; ++j) {
-                nn->weights[j] -= opt->learning_rate * gradient_acc[j] * (1.0 / current_batch_size);
-            }
+            nn_cuda_add(nn->ctx, nn->weights, gradient_acc, nn->weights_len, -1 * (opt->learning_rate) * (1.0 / current_batch_size));
         }
     }
 
-    free(deltas);
-    free(gradient_acc);
+    nn_cuda_free(deltas);
+    nn_cuda_free(gradient_acc);
+    nn_cuda_free(scratchpad);
     free(train_indexes);
 }
 
 /*
 *  Backpropagation is a gradient computation method (https://en.wikipedia.org/wiki/Backpropagation#Matrix_multiplication).
 */
-static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, enum Loss_function loss) {
+static void backpropagation(const NN *nn, size_t batch_i, const float *y_train, float *deltas, size_t deltas_len, float *gradient_acc, float *scratchpad, enum Loss_function loss) {
 
     /*
     *  We need to calculate all the delta(l) arrays (errors of the neurons at layer l) starting from the output.
